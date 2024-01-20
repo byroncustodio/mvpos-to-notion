@@ -29,7 +29,7 @@ namespace ShopMakersManager
 
         public async Task<string> ImportSales(List<SaleItem> saleItems, string dbTitle)
         {
-            var parentId = "f0c4045aa7484e1baddf79936c167ca1";
+            var parentId = _secretsManager.GetSecret("notion-makers-page-id", "1");
 
             var databaseProperties = new Dictionary<string, object>()
             {
