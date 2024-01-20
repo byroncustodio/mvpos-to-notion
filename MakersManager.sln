@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34511.84
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MakersManager", "MakersManager.csproj", "{116D0806-28B6-4BE0-8133-F2C5FD9491A4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{116D0806-28B6-4BE0-8133-F2C5FD9491A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{116D0806-28B6-4BE0-8133-F2C5FD9491A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{116D0806-28B6-4BE0-8133-F2C5FD9491A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{116D0806-28B6-4BE0-8133-F2C5FD9491A4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6615C000-26ED-450E-B813-6F6DFA0EBE36}
+	EndGlobalSection
+EndGlobal
