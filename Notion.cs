@@ -1,6 +1,4 @@
 ﻿using Google.Cloud.SecretManager.V1;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using ShopMakersManager.Models.MVPOS;
 using ShopMakersManager.Models.Notion.Block;
