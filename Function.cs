@@ -27,7 +27,7 @@ public class Function(ILogger<Function> logger, MVPOS mvpos, Notion notion) : IH
         }
         else
         {
-            await context.Response.WriteAsync("Expected parameters for request.");
+            throw new Exception("Expected arguments not found in request. Please try again with required arguments.");
         }
     }
 }
