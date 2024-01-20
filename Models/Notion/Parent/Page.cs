@@ -5,6 +5,6 @@ namespace ShopMakersManager.Models.Notion.Parent
     public class Page : Base
     {
         [JsonProperty("page_id")]
-        public required string PageId { get; set; }
+        public string PageId { get; set; }
     }
 }

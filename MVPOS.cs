@@ -50,7 +50,7 @@ namespace ShopMakersManager
         {
             string endpoint = "api/v1/users/changeactiveclientlocation";
 
-            List<KeyValuePair<string, string>> content = [new KeyValuePair<string, string>("client_location_id", ((int)location).ToString())];
+            List<KeyValuePair<string, string>> content = new() { new KeyValuePair<string, string>("client_location_id", ((int)location).ToString()) };
 
             HttpRequestMessage httpRequest = new()
             {
@@ -69,7 +69,7 @@ namespace ShopMakersManager
 
         public async Task<List<SaleItem>> GetSalesByDateRange(List<StoreLocation> locations, DateTime from, DateTime to)
         {
-            List<SaleItem> sales = [];
+            List<SaleItem> sales = new();
 
             foreach (var location in locations)
             {

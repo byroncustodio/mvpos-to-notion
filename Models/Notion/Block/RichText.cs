@@ -6,7 +6,7 @@ namespace ShopMakersManager.Models.Notion.Block
     {
 
         [JsonProperty("type")]
-        public required string Type { get; set; } // text, mention, equation
+        public string Type { get; set; } // text, mention, equation
 
         [JsonProperty("text", NullValueHandling = NullValueHandling.Ignore)]
         public Text Text { get; set; }
@@ -24,7 +24,7 @@ namespace ShopMakersManager.Models.Notion.Block
     public class Text
     {
         [JsonProperty("content")]
-        public required string Content { get; set; }
+        public string Content { get; set; }
 
         [JsonProperty("link", NullValueHandling = NullValueHandling.Ignore)]
         public object Link { get; set; }

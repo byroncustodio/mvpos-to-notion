@@ -8,51 +8,51 @@ namespace ShopMakersManager.Models.Notion.Database
     public class Database
     {
         [JsonProperty("object")]
-        public required string Object { get; set; }
+        public string Object { get; set; }
 
         [JsonProperty("id")]
-        public required string Id { get; set; }
+        public string Id { get; set; }
 
         [JsonProperty("created_time")]
-        public required string CreatedTime { get; set; }
+        public string CreatedTime { get; set; }
 
         [JsonProperty("created_by")]
-        public required object CreatedBy { get; set; }
+        public object CreatedBy { get; set; }
 
         [JsonProperty("last_edited_time")]
-        public required string LastEditedTime { get; set; }
+        public string LastEditedTime { get; set; }
 
         [JsonProperty("last_edited_by")]
-        public required object LastEditedBy { get; set; }
+        public object LastEditedBy { get; set; }
 
         [JsonProperty("title")]
-        public required List<RichText> Title { get; set; }
+        public List<RichText> Title { get; set; }
 
         [JsonProperty("description")]
-        public required List<RichText> description { get; set; }
+        public List<RichText> description { get; set; }
 
         [JsonProperty("icon")]
-        public required object Icon { get; set; }
+        public object Icon { get; set; }
 
         [JsonProperty("cover")]
-        public required object Cover { get; set; }
+        public object Cover { get; set; }
 
         [JsonProperty("properties")]
-        public required object Properties { get; set; }
+        public object Properties { get; set; }
 
         [JsonProperty("parent")]
-        public required Parent.Base Parent { get; set; }
+        public Parent.Base Parent { get; set; }
 
         [JsonProperty("url")]
-        public required string Url { get; set; }
+        public string Url { get; set; }
 
         [JsonProperty("archived")]
-        public required bool Archived { get; set; }
+        public bool Archived { get; set; }
 
         [JsonProperty("is_inline")]
-        public required bool IsInline { get; set; }
+        public bool IsInline { get; set; }
 
         [JsonProperty("public_url")]
-        public required string PublicUrl { get; set; }
+        public string PublicUrl { get; set; }
     }
 }
