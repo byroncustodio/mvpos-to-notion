@@ -24,21 +24,20 @@ public class Function : IHttpFunction
 
     public async Task HandleAsync(HttpContext context)
     {
+        var fromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+
         if (context.Request.Query.Count != 0)
         {
-            var fromDate = new DateTime(int.Parse(context.Request.Query["year"]), int.Parse(context.Request.Query["month"]), 1);
-            var toDate = fromDate.AddMonths(1).AddSeconds(-1);
-
-            await _mvpos.Login();
-            var sales = await _mvpos.GetSalesByDateRange(new() { MVPOS.StoreLocation.ParkRoyal, MVPOS.StoreLocation.Guildford }, fromDate, toDate);
-
-            var url = await _notion.ImportSales(sales, fromDate.ToString("MMMM yyyy"));
-
-            await context.Response.WriteAsync(string.Format("Successfully generated report. Report URL: {0}", url));
+            fromDate = new DateTime(int.Parse(context.Request.Query["year"]), int.Parse(context.Request.Query["month"]), 1);
         }
-        else
-        {
-            throw new Exception("Expected arguments not found in request. Please try again with required arguments.");
-        }
+
+        var toDate = fromDate.AddMonths(1).AddSeconds(-1);
+
+        await _mvpos.Login();
+        var sales = await _mvpos.GetSalesByDateRange(new() { MVPOS.StoreLocation.ParkRoyal, MVPOS.StoreLocation.Guildford }, fromDate, toDate);
+
+        var url = await _notion.ImportSales(sales, fromDate.ToString("MMMM yyyy"));
+
+        await context.Response.WriteAsync(string.Format("Successfully generated report. Report URL: {0}", url));
     }
 }
