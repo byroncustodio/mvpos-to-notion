@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace ShopMakersManager.Models.Notion.Parent
+namespace MakersManager.Models.Notion.Parent
 {
     public class Block : Base
     {

@@ -1,9 +1,9 @@
 ﻿using Newtonsoft.Json;
-using ShopMakersManager.Models.Notion.Block;
-using ShopMakersManager.Models.Notion.Parent;
+using MakersManager.Models.Notion.Block;
 using System.Collections.Generic;
+using MakersManager.Models.Notion.Parent;
 
-namespace ShopMakersManager.Models.Notion.Database
+namespace MakersManager.Models.Notion.Database
 {
     public class Database
     {
@@ -41,7 +41,7 @@ namespace ShopMakersManager.Models.Notion.Database
         public object Properties { get; set; }
 
         [JsonProperty("parent")]
-        public Parent.Base Parent { get; set; }
+        public Base Parent { get; set; }
 
         [JsonProperty("url")]
         public string Url { get; set; }

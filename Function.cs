@@ -2,8 +2,9 @@ using Google.Cloud.Functions.Framework;
 using Google.Cloud.Functions.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using ShopMakersManager;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MakersManager;
@@ -24,18 +25,52 @@ public class Function : IHttpFunction
 
     public async Task HandleAsync(HttpContext context)
     {
-        var fromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+        // default query values
 
-        if (context.Request.Query.Count != 0)
+        var fromDate = (new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1)).AddMonths(-1);
+        var limit = 0;
+        var vendor = MVPOS.Vendor.LittleSaika;
+        var locations = new List<MVPOS.StoreLocation>() { MVPOS.StoreLocation.ParkRoyal, MVPOS.StoreLocation.Guildford, MVPOS.StoreLocation.Victoria };
+
+        #region parse query
+
+        var query = context.Request.Query;
+
+        if (query.ContainsKey("month") && query.ContainsKey("year"))
         {
-            fromDate = new DateTime(int.Parse(context.Request.Query["year"]), int.Parse(context.Request.Query["month"]), 1);
+            fromDate = new DateTime(int.Parse(query["year"]), int.Parse(query["month"]), 1);
+        }
+        else if (query.ContainsKey("month"))
+        {
+            fromDate = new DateTime(DateTime.Now.Year, int.Parse(query["month"]), 1);
+        }
+        else if (query.ContainsKey("year"))
+        {
+            fromDate = new DateTime(int.Parse(query["year"]), DateTime.Now.Month, 1);
         }
 
-        var toDate = fromDate.AddMonths(1).AddSeconds(-1);
+        if (query.ContainsKey("limit"))
+        {
+            limit = int.Parse(query["limit"]);
+        }
+
+        if (query.ContainsKey("vendor"))
+        {
+            vendor = (MVPOS.Vendor)int.Parse(query["vendor"]);
+        }
+
+        if (query.ContainsKey("locations"))
+        {
+            locations = Array.ConvertAll(query["locations"].ToString().Split(","), int.Parse).Cast<MVPOS.StoreLocation>().ToList();
+        }
+
+        #endregion
 
         await _mvpos.Login();
-        var sales = await _mvpos.GetSalesByDateRange(new() { MVPOS.StoreLocation.ParkRoyal, MVPOS.StoreLocation.Guildford }, fromDate, toDate);
+        var sales = await _mvpos.GetSalesByDateRange(locations, fromDate, fromDate.AddMonths(1).AddSeconds(-1));
+        sales = _mvpos.ApplySaleFilters(sales, limit, vendor);
 
+        sales = await _notion.SetSaleItemRelations(sales);
         var url = await _notion.ImportSales(sales, fromDate.ToString("MMMM yyyy"));
 
         await context.Response.WriteAsync(string.Format("Successfully generated report. Report URL: {0}", url));

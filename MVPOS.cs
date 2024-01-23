@@ -1,7 +1,7 @@
 ﻿using Google.Cloud.SecretManager.V1;
 using Newtonsoft.Json;
-using ShopMakersManager.Models.MVPOS;
-using ShopMakersManager.Utilities;
+using MakersManager.Models.MVPOS;
+using MakersManager.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,24 +9,25 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace ShopMakersManager
+namespace MakersManager
 {
     public class MVPOS
     {
-        private readonly HttpClient _httpClient;
         private readonly SecretsManager _secretsManager;
+        private readonly HttpClient _httpClient;
         private string _sessionCookie = string.Empty;
 
         public MVPOS(HttpClient httpClient, SecretManagerServiceClient secretManagerServiceClient)
         {
-            _httpClient = httpClient;
-            _httpClient.BaseAddress = new Uri("https://app.mvpofsales.com");
             _secretsManager = new SecretsManager(secretManagerServiceClient);
+
+            _httpClient = httpClient;
+            _httpClient.BaseAddress = new Uri(_secretsManager.GetSecret("mvpos-base-url", "1"));
         }
 
         public async Task Login()
         {
-            // Get and store session cookie
+            // Gets and stores session cookie
             await CreateSession();
 
             string endpoint = "api/v1/users/login";
@@ -43,28 +44,11 @@ namespace ShopMakersManager
             };
 
             using HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest);
-            if (!httpResponse.IsSuccessStatusCode) { throw new Exception("Login failed."); }
-        }
-
-        public async Task SetStoreLocation(StoreLocation location)
-        {
-            string endpoint = "api/v1/users/changeactiveclientlocation";
-
-            List<KeyValuePair<string, string>> content = new() { new KeyValuePair<string, string>("client_location_id", ((int)location).ToString()) };
-
-            HttpRequestMessage httpRequest = new()
+            if (!httpResponse.IsSuccessStatusCode) 
             {
-                Method = HttpMethod.Put,
-                RequestUri = new Uri(endpoint, UriKind.Relative),
-                Headers =
-                {
-                    { HttpRequestHeader.Cookie.ToString(), _sessionCookie }
-                },
-                Content = new FormUrlEncodedContent(content)
-            };
-
-            using HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest);
-            if (!httpResponse.IsSuccessStatusCode) { throw new Exception("Failed to set store location."); }
+                var message = await httpResponse.Content.ReadAsStringAsync();
+                throw new Exception(message);
+            }
         }
 
         public async Task<List<SaleItem>> GetSalesByDateRange(List<StoreLocation> locations, DateTime from, DateTime to)
@@ -89,7 +73,11 @@ namespace ShopMakersManager
                 };
 
                 using HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest);
-                if (!httpResponse.IsSuccessStatusCode) { throw new Exception("Failed to get sale items."); }
+                if (!httpResponse.IsSuccessStatusCode) 
+                {
+                    var message = await httpResponse.Content.ReadAsStringAsync();
+                    throw new Exception(message);
+                }
 
                 string content = await httpResponse.Content.ReadAsStringAsync();
                 SaleItems model = JsonConvert.DeserializeObject<SaleItems>(content) ?? throw new Exception("Deserialized JSON resulted in null value.");
@@ -103,12 +91,71 @@ namespace ShopMakersManager
             return sales.OrderBy(s => s.SaleDate).ToList();
         }
 
+        public List<SaleItem> ApplySaleFilters(List<SaleItem> saleItems, int limit, Vendor vendor)
+        {
+            var skuCode = _secretsManager.GetSecret("mvpos-sku-code", "1").ToString();
+            var skus = _secretsManager.GetSecret("mvpos-skus-ls", "1").Split("\n").ToList();
+
+            switch (vendor)
+            {
+                case Vendor.LittleSaika:
+                    saleItems = saleItems.Where(item => skus.Contains(item.Sku) || item.Sku == null || !item.Sku.Contains(skuCode)).ToList();
+                    break;
+                case Vendor.SukitaStudio:
+                    skus = _secretsManager.GetSecret("mvpos-skus-ss", "1").Split("\n").ToList();
+                    saleItems = saleItems.Where(item => skus.Contains(item.Sku) || item.Sku == null || !item.Sku.Contains(skuCode)).ToList();
+                    break;
+            }
+
+            if (limit > 0)
+            {
+                saleItems = saleItems.Take(limit).ToList();
+            }
+
+            return saleItems;
+        }
+
         private async Task CreateSession()
         {
             using HttpResponseMessage httpResponse = await _httpClient.GetAsync("/");
-            if (!httpResponse.IsSuccessStatusCode) { throw new Exception("Request failed to load url."); }
+            if (!httpResponse.IsSuccessStatusCode) 
+            {
+                var message = await httpResponse.Content.ReadAsStringAsync();
+                throw new Exception(message); 
+            }
 
             _sessionCookie = httpResponse.Headers.SingleOrDefault(header => header.Key == "Set-Cookie").Value.First().Replace(" ", "").Split(";").Where(x => x.StartsWith("PHPSESSID")).First();
+        }
+
+        private async Task SetStoreLocation(StoreLocation location)
+        {
+            string endpoint = "api/v1/users/changeactiveclientlocation";
+
+            List<KeyValuePair<string, string>> content = new() { new KeyValuePair<string, string>("client_location_id", ((int)location).ToString()) };
+
+            HttpRequestMessage httpRequest = new()
+            {
+                Method = HttpMethod.Put,
+                RequestUri = new Uri(endpoint, UriKind.Relative),
+                Headers =
+                {
+                    { HttpRequestHeader.Cookie.ToString(), _sessionCookie }
+                },
+                Content = new FormUrlEncodedContent(content)
+            };
+
+            using HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest);
+            if (!httpResponse.IsSuccessStatusCode) 
+            {
+                var message = await httpResponse.Content.ReadAsStringAsync();
+                throw new Exception(message);
+            }
+        }
+
+        public enum Vendor
+        {
+            LittleSaika = 1,
+            SukitaStudio
         }
 
         public enum StoreLocation
@@ -123,22 +170,6 @@ namespace ShopMakersManager
             Richmond = 253,
             ParkRoyal = 261,
             Southgate = 262
-        }
-
-        public enum Month
-        {
-            January = 1,
-            February,
-            March,
-            April,
-            May,
-            June,
-            July,
-            August,
-            September,
-            October,
-            November,
-            December
         }
     }
 }

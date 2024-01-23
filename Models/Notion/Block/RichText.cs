@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace ShopMakersManager.Models.Notion.Block
+namespace MakersManager.Models.Notion.Block
 {
     public class RichText
     {

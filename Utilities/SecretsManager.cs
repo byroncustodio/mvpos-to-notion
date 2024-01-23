@@ -1,10 +1,7 @@
 ﻿using Google.Cloud.SecretManager.V1;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 using System;
 
-namespace ShopMakersManager.Utilities
+namespace MakersManager.Utilities
 {
     public class SecretsManager
     {

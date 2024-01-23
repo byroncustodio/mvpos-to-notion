@@ -1,8 +1,9 @@
-﻿using Newtonsoft.Json;
+﻿using MakersManager.Models.Notion;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 
-namespace ShopMakersManager.Models.MVPOS
+namespace MakersManager.Models.MVPOS
 {
     public class SaleItems
     {
@@ -14,8 +15,6 @@ namespace ShopMakersManager.Models.MVPOS
 
         [JsonProperty("end_date")]
         public DateTime EndDate { get; set; }
-
-        public SaleItems() { }
     }
 
     public class SaleItem
@@ -27,12 +26,12 @@ namespace ShopMakersManager.Models.MVPOS
         public DateTime SaleDate { get; set; }
 
         [JsonProperty("payment_method")]
-        public PaymentMethod PaymentMethod { get; set; }
-        public string PaymentMethodName
+        public Payment Payment { get; set; }
+        public string PaymentName
         {
             get
             {
-                return PaymentMethod != null ? PaymentMethod.Name : string.Empty;
+                return Payment != null ? Payment.Name : string.Empty;
             }
         }
 
@@ -42,25 +41,25 @@ namespace ShopMakersManager.Models.MVPOS
         {
             get
             {
-                return LocationId switch
-                {
-                    212 => "Gastown",
-                    213 => "Kitsilano",
-                    214 => "North Vancouver",
-                    215 => "Victoria",
-                    216 => "Metrotown",
-                    217 => "Guildford",
-                    252 => "Tsawwassen",
-                    253 => "Richmond",
-                    261 => "Park Royal",
-                    262 => "Southgate",
-                    _ => string.Empty,
-                };
+                return ((MakersManager.MVPOS.StoreLocation)LocationId).ToString();
             }
         }
 
         [JsonProperty("item_number")]
         public string Sku { get; set; }
+
+        [JsonIgnore]
+        public Product Product { get; set; }
+        public List<object> ProductRelation
+        {
+            get
+            {
+                return Product == null ? new List<object>() : new List<object>
+                {
+                    new { id = Product.Id }
+                };
+            }
+        }
 
         [JsonProperty("name")]
         public string Name { get; set; }
@@ -70,61 +69,53 @@ namespace ShopMakersManager.Models.MVPOS
 
         [JsonProperty("price")]
         public decimal Price { get; set; }
-        public string PriceFormatted
-        {
-            get
-            {
-                return Price.ToString("C");
-            }
-        }
 
         [JsonProperty("quantity")]
         public int Quantity { get; set; }
 
         [JsonProperty("subtotal")]
         public decimal SubTotal { get; set; }
-        public string SubTotalFormatted
-        {
-            get
-            {
-                return SubTotal.ToString("C");
-            }
-        }
 
         [JsonProperty("discount_percentage")]
-        public decimal DiscountPercent { get; set; }
-        public string DiscountPercentFormatted
-        {
-            get
-            {
-                return (decimal.ToDouble(DiscountPercent) / 100d).ToString("P");
-            }
-        }
+        public decimal Discount { get; set; }
 
         [JsonProperty("tax_amount")]
-        public decimal TaxAmount { get; set; }
-        public string TaxAmountFormatted
-        {
-            get
-            {
-                return TaxAmount.ToString("C");
-            }
-        }
+        public decimal Tax { get; set; }
 
         [JsonProperty("final_cost")]
-        public decimal FinalCost { get; set; }
-        public string FinalCostFormatted
+        public decimal Total { get; set; }
+
+        [JsonIgnore]
+        public decimal Profit
         {
             get
             {
-                return FinalCost.ToString("C");
+                var numOfVendors = Enum.GetNames(typeof(MakersManager.MVPOS.Vendor)).Length;
+
+                if (Product == null)
+                {
+                    if (Price == 25m) // Assume this is a mystery box sale
+                    {
+                        return Total / numOfVendors;
+                    }
+                    else // Cant determine which vendor, sale is split evenly
+                    {
+                        return Total / numOfVendors;
+                    }
+                }
+                else if (Product.Properties.Vendor.Select.Name == "Shared")
+                {
+                    return Total / numOfVendors;
+                }
+                else
+                {
+                    return Total;
+                }
             }
         }
-
-        public SaleItem() { }
     }
 
-    public class PaymentMethod
+    public class Payment
     {
         [JsonProperty("id")]
         public int? Id { get; set; }
@@ -134,7 +125,5 @@ namespace ShopMakersManager.Models.MVPOS
 
         [JsonProperty("order")]
         public string Order { get; set; }
-
-        public PaymentMethod() { }
     }
 }
