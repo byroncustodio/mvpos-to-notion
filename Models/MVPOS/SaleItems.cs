@@ -44,6 +44,17 @@ namespace MakersManager.Models.MVPOS
                 return ((MakersManager.MVPOS.StoreLocation)LocationId).ToString();
             }
         }
+        public Location Location { get; set; }
+        public List<object> LocationRelation
+        {
+            get
+            {
+                return Location == null ? new List<object>() : new List<object>
+                {
+                    new { id = Location.Id }
+                };
+            }
+        }
 
         [JsonProperty("item_number")]
         public string Sku { get; set; }
@@ -111,6 +122,19 @@ namespace MakersManager.Models.MVPOS
                 {
                     return Total;
                 }
+            }
+        }
+
+        [JsonIgnore]
+        public Analytic Analytic { get; set; }
+        public List<object> AnalyticRelation
+        {
+            get
+            {
+                return Analytic == null ? new List<object>() : new List<object>
+                {
+                    new { id = Analytic.Id }
+                };
             }
         }
     }

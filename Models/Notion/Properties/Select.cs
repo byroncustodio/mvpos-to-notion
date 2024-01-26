@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace MakersManager.Models.Notion.Block
+namespace MakersManager.Models.Notion.Properties
 {
     public class Select
     {

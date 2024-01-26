@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using MakersManager.Models.Notion.Block;
 using System.Collections.Generic;
+using MakersManager.Models.Notion.Properties;
 
 namespace MakersManager.Models.Notion
 {
@@ -11,26 +12,14 @@ namespace MakersManager.Models.Notion
         public Vendor Vendor { get; set; }
     }
 
-    public class Sku
+    public class Sku : PageProperty
     {
-        [JsonProperty("id")]
-        public string Id { get; set; }
-
-        [JsonProperty("type")]
-        public string Type { get; set; }
-
         [JsonProperty("rich_text")]
         public List<RichText> RichText { get; set; }
     }
 
-    public class Vendor
+    public class Vendor : PageProperty
     {
-        [JsonProperty("id")]
-        public string Id { get; set; }
-
-        [JsonProperty("type")]
-        public string Type { get; set; }
-
         [JsonProperty("select")]
         public Select Select { get; set; }
     }

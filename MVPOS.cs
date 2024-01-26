@@ -51,70 +51,6 @@ namespace MakersManager
             }
         }
 
-        public async Task<List<SaleItem>> GetSalesByDateRange(List<StoreLocation> locations, DateTime from, DateTime to)
-        {
-            List<SaleItem> sales = new();
-
-            foreach (var location in locations)
-            {
-                await SetStoreLocation(location);
-
-                string endpoint = "api/v1/vendors/0/saleitems/date";
-                string queryParams = "start_date=" + from.ToString("MM/dd/yyyy") + "&end_date=" + to.ToString("MM/dd/yyyy");
-
-                HttpRequestMessage httpRequest = new()
-                {
-                    Method = HttpMethod.Get,
-                    RequestUri = new Uri(string.Join("?", endpoint, queryParams), UriKind.Relative),
-                    Headers =
-                    {
-                        { HttpRequestHeader.Cookie.ToString(), _sessionCookie }
-                    }
-                };
-
-                using HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest);
-                if (!httpResponse.IsSuccessStatusCode) 
-                {
-                    var message = await httpResponse.Content.ReadAsStringAsync();
-                    throw new Exception(message);
-                }
-
-                string content = await httpResponse.Content.ReadAsStringAsync();
-                SaleItems model = JsonConvert.DeserializeObject<SaleItems>(content) ?? throw new Exception("Deserialized JSON resulted in null value.");
-
-                if (model.Items != null)
-                {
-                    sales.AddRange(model.Items);
-                }
-            }
-
-            return sales.OrderBy(s => s.SaleDate).ToList();
-        }
-
-        public List<SaleItem> ApplySaleFilters(List<SaleItem> saleItems, int limit, Vendor vendor)
-        {
-            var skuCode = _secretsManager.GetSecret("mvpos-sku-code", "1").ToString();
-            var skus = _secretsManager.GetSecret("mvpos-skus-ls", "1").Split("\n").ToList();
-
-            switch (vendor)
-            {
-                case Vendor.LittleSaika:
-                    saleItems = saleItems.Where(item => skus.Contains(item.Sku) || item.Sku == null || !item.Sku.Contains(skuCode)).ToList();
-                    break;
-                case Vendor.SukitaStudio:
-                    skus = _secretsManager.GetSecret("mvpos-skus-ss", "1").Split("\n").ToList();
-                    saleItems = saleItems.Where(item => skus.Contains(item.Sku) || item.Sku == null || !item.Sku.Contains(skuCode)).ToList();
-                    break;
-            }
-
-            if (limit > 0)
-            {
-                saleItems = saleItems.Take(limit).ToList();
-            }
-
-            return saleItems;
-        }
-
         private async Task CreateSession()
         {
             using HttpResponseMessage httpResponse = await _httpClient.GetAsync("/");
@@ -127,7 +63,7 @@ namespace MakersManager
             _sessionCookie = httpResponse.Headers.SingleOrDefault(header => header.Key == "Set-Cookie").Value.First().Replace(" ", "").Split(";").Where(x => x.StartsWith("PHPSESSID")).First();
         }
 
-        private async Task SetStoreLocation(StoreLocation location)
+        public async Task SetStoreLocation(StoreLocation location)
         {
             string endpoint = "api/v1/users/changeactiveclientlocation";
 
@@ -150,6 +86,32 @@ namespace MakersManager
                 var message = await httpResponse.Content.ReadAsStringAsync();
                 throw new Exception(message);
             }
+        }
+
+        public async Task<SaleItems> GetSaleItemsByDateRange(DateTime from, DateTime to)
+        {
+            string endpoint = "api/v1/vendors/0/saleitems/date";
+            string queryParams = "start_date=" + from.ToString("MM/dd/yyyy") + "&end_date=" + to.ToString("MM/dd/yyyy");
+
+            HttpRequestMessage httpRequest = new()
+            {
+                Method = HttpMethod.Get,
+                RequestUri = new Uri(string.Join("?", endpoint, queryParams), UriKind.Relative),
+                Headers =
+                    {
+                        { HttpRequestHeader.Cookie.ToString(), _sessionCookie }
+                    }
+            };
+
+            using HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest);
+            if (!httpResponse.IsSuccessStatusCode)
+            {
+                var message = await httpResponse.Content.ReadAsStringAsync();
+                throw new Exception(message);
+            }
+
+            string content = await httpResponse.Content.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<SaleItems>(content) ?? throw new Exception("Deserialized JSON resulted in null value.");
         }
 
         public enum Vendor
