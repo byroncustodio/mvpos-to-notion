@@ -22,8 +22,8 @@ public class Function : IHttpFunction
     private readonly SecretsManager _secretsManager;
     private readonly MVPOS _mvpos;
     private readonly Notion _notion;
-
-    private List<SaleItem> sales = new();
+    private List<SaleItem> _sales = new();
+    private List<Tuple<DateTime, MVPOS.StoreLocation>> _analysisRowsToCreate = new();
 
     public Function(ILogger<Function> logger, SecretManagerServiceClient secretManagerServiceClient, MVPOS mvpos, Notion notion)
     {
@@ -37,10 +37,11 @@ public class Function : IHttpFunction
     {
         // default query values
 
-        var fromDate = (new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1)).AddMonths(-1);
+        var fromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-1);
+        var toDate = fromDate.AddMonths(1).AddSeconds(-1);
         var limit = 0;
         var vendor = MVPOS.Vendor.LittleSaika;
-        var locations = new List<MVPOS.StoreLocation>() { MVPOS.StoreLocation.ParkRoyal, MVPOS.StoreLocation.Guildford, MVPOS.StoreLocation.Victoria };
+        List<MVPOS.StoreLocation> locations = Enum.GetValues(typeof(MVPOS.StoreLocation)).Cast<MVPOS.StoreLocation>().ToList();
 
         #region parse query
 
@@ -57,6 +58,11 @@ public class Function : IHttpFunction
         else if (query.ContainsKey("year"))
         {
             fromDate = new DateTime(int.Parse(query["year"]), DateTime.Now.Month, 1);
+        }
+        else if (query.ContainsKey("from") && query.ContainsKey("to"))
+        {
+            fromDate = DateTime.Parse(query["from"]);
+            toDate = DateTime.Parse(query["to"]);
         }
 
         if (query.ContainsKey("limit"))
@@ -78,15 +84,17 @@ public class Function : IHttpFunction
 
         await _mvpos.Login();
 
-        await GetSales(locations, fromDate, fromDate.AddMonths(1).AddSeconds(-1));
+        await GetSales(locations, fromDate, toDate);
 
-        ApplyFilterAndSort(limit, vendor);
+        await ApplyFilterAndSort(limit, vendor);
+
+        await ImportAnalytics();
 
         await SetRelations();
 
-        var url = await ImportSales();
+        var database = await ImportSales();
 
-        await context.Response.WriteAsync(string.Format("Successfully generated report. Report URL: {0}", url));
+        await context.Response.WriteAsync(string.Format("Successfully generated report. Report URL: {0}", database.Url));
     }
 
     private async Task GetSales(List<MVPOS.StoreLocation> locations, DateTime from, DateTime to)
@@ -99,50 +107,97 @@ public class Function : IHttpFunction
 
             if (saleItems.Items != null)
             {
-                sales.AddRange(saleItems.Items);
+                _sales.AddRange(saleItems.Items);
+
+                foreach (var date in GetMonthsBetweenDates(from, to))
+                {
+                    if (saleItems.Items.Any(sale => sale.LocationId == (int)location && sale.SaleDate.ToString("Y") == date.ToString("Y")))
+                    {
+                        _analysisRowsToCreate.Add(Tuple.Create(date, location));
+                    }
+                }
             }
         }
     }
 
-    private void ApplyFilterAndSort(int limit, MVPOS.Vendor vendor)
+    private async Task ApplyFilterAndSort(int limit, MVPOS.Vendor vendor)
     {
-        string skuSecretId;
+        var productRows = await _notion.QueryDatabase(_secretsManager.GetSecret("notion-products-id"));
+        var vendorsToFilter = new List<MVPOS.Vendor> { vendor, MVPOS.Vendor.Shared };
 
-        switch (vendor)
+        var products = productRows
+            .Cast<JObject>()
+            .Where(x => vendorsToFilter.Contains((MVPOS.Vendor)Enum.Parse(typeof(MVPOS.Vendor), x.ToObject<Product>().Properties.Vendor.Select.Name)))
+            .Select(x => x.ToObject<Product>())
+            .ToList();
+
+        var skuCode = _secretsManager.GetSecret("mvpos-sku-code");
+        List<string> skus = new();
+
+        foreach (var product in products) 
         {
-            case MVPOS.Vendor.LittleSaika:
-            default:
-                skuSecretId = "mvpos-skus-ls";
-                break;
-            case MVPOS.Vendor.SukitaStudio:
-                skuSecretId = "mvpos-skus-ss";
-                break;
+            skus.AddRange(product.Properties.SKU.RichText[0].PlainText.Split(","));
         }
 
-        var skus = _secretsManager.GetSecret(skuSecretId, "1").Split("\n").ToList();
-        var skuCode = _secretsManager.GetSecret("mvpos-sku-code", "1").ToString();
-
-        sales = sales.Where(x => skus.Contains(x.Sku) || x.Sku == null || !x.Sku.Contains(skuCode)).ToList();
+        _sales = _sales.Where(sale => skus.Contains(sale.Sku) || sale.Sku == null || !sale.Sku.Contains(skuCode)).ToList();
 
         if (limit > 0)
         {
-            sales = sales.Take(limit).ToList();
+            _sales = _sales.Take(limit).ToList();
         }
 
-        sales = sales.OrderBy(x => x.SaleDate).ToList();
+        _sales = _sales.OrderBy(sale => sale.SaleDate).ToList();
+    }
+
+    private async Task ImportAnalytics()
+    {
+        var locationRows = await _notion.QueryDatabase(_secretsManager.GetSecret("notion-locations-id"));
+        var analyticsDB = await _notion.GetDatabase(_secretsManager.GetSecret("notion-analytics-id"));
+
+        foreach (var analysisRow in _analysisRowsToCreate.OrderBy(row => row.Item1).ThenBy(row => row.Item2))
+        {
+            var activeDate = analysisRow.Item1;
+            var activeLocation = analysisRow.Item2;
+            Location locationData = null;
+
+            foreach (JObject locationRow in locationRows.Cast<JObject>())
+            {
+                Location location = locationRow.ToObject<Location>();
+
+                if (activeLocation == (MVPOS.StoreLocation)Enum.Parse(typeof(MVPOS.StoreLocation), location.Properties.Name.Title[0].PlainText.Replace(" ", "")))
+                {
+                    locationData = location;
+                    break;
+                }
+            }
+
+            if (locationData != null)
+            {
+                if (await AnalysisExists(activeDate, locationData)) { continue; }
+
+                var rowProperties = new Dictionary<string, object>
+                {
+                    { "Date", NotionUtilities.CreateDateProperty(activeDate) },
+                    { "Location", NotionUtilities.CreateRelationProperty(locationData) },
+                    { "Status", NotionUtilities.CreateStatusProperty(activeDate < DateTime.Now ? "Done" : "In Progress") }
+                };
+
+                await _notion.AddDatabaseRow(analyticsDB.Id, rowProperties);
+            }
+        }
     }
 
     private async Task SetRelations()
     {
-        var locations = await _notion.QueryDatabase(_secretsManager.GetSecret("notion-locations-id", "1"));
-        var products = await _notion.QueryDatabase(_secretsManager.GetSecret("notion-products-id", "1"));
-        var analytics = await _notion.QueryDatabase(_secretsManager.GetSecret("notion-analytics-id", "1"));
+        var locationRows = await _notion.QueryDatabase(_secretsManager.GetSecret("notion-locations-id"));
+        var productRows = await _notion.QueryDatabase(_secretsManager.GetSecret("notion-products-id"));
+        var analysisRows = await _notion.QueryDatabase(_secretsManager.GetSecret("notion-analytics-id"));
 
-        foreach (var sale in sales)
+        foreach (var sale in _sales)
         {
-            foreach (JObject locationObj in locations.Cast<JObject>())
+            foreach (JObject row in locationRows.Cast<JObject>())
             {
-                Location location = locationObj.ToObject<Location>();
+                Location location = row.ToObject<Location>();
 
                 if (location.Properties.Name.Title[0].PlainText.Replace(" ", "") == sale.LocationName)
                 {
@@ -151,25 +206,25 @@ public class Function : IHttpFunction
                 }
             }
 
-            foreach (JObject productObj in products.Cast<JObject>())
+            foreach (JObject row in productRows.Cast<JObject>())
             {
-                Product product = productObj.ToObject<Product>();
+                Product product = row.ToObject<Product>();
 
-                if (product.Properties.SKU.RichText[0].PlainText == sale.Sku)
+                if (product.Properties.SKU.RichText[0].PlainText.Split(",").Contains(sale.Sku))
                 {
                     sale.Product = product;
                     break;
                 }
             }
 
-            foreach (JObject analyticsObj in analytics.Cast<JObject>())
+            foreach (JObject row in analysisRows.Cast<JObject>())
             {
-                Analytic analytic = analyticsObj.ToObject<Analytic>();
+                Analysis analysis = row.ToObject<Analysis>();
 
-                if (DateTime.Parse(analytic.Properties.Month.Title[0].PlainText).ToString("MM/yy") == sale.SaleDate.ToString("MM/yy")
-                    && analytic.Properties.Location.Relations[0].Id == sale.Location.Id)
+                if (DateTime.Parse(analysis.Properties.Date.Data.Start).ToString("Y") == sale.SaleDate.ToString("Y")
+                    && analysis.Properties.Location.Relations[0].Id == sale.Location.Id)
                 {
-                    sale.Analytic = analytic;
+                    sale.Analysis = analysis;
                     break;
                 }
             }
@@ -178,41 +233,92 @@ public class Function : IHttpFunction
 
     private async Task<Database> ImportSales()
     {
-        var database = await _notion.GetDatabase(_secretsManager.GetSecret("notion-sales-id", "1"));
+        var salesDB = await _notion.GetDatabase(_secretsManager.GetSecret("notion-sales-id"));
 
-        foreach (var sale in sales)
+        foreach (var sale in _sales)
         {
-            var existingSales = await _notion.QueryDatabase(_secretsManager.GetSecret("notion-sales-id", "1"), new
-            {
-                property = "Sale Id",
-                title = new { equals = sale.SaleId.ToString() }
-            });
-
-            if (existingSales.Count > 0) 
-            {
-                _logger.LogInformation("[{Code}] - {Message}", "DUPLICATE_SALE", string.Format("Skipped creating row for sale id '{0}'", sale.SaleId.ToString()));
-                continue; 
-            }
+            if (await SaleExists(sale)) { continue; }
 
             var rowProperties = new Dictionary<string, object>
             {
                 { "Sale Id", NotionUtilities.CreateTitleProperty(sale.SaleId.ToString()) },
                 { "Sale Date", NotionUtilities.CreateDateProperty(sale.SaleDate, "America/Vancouver") },
-                { "Location", NotionUtilities.CreateRelationProperty(sale.LocationRelation) },
+                { "Location", NotionUtilities.CreateRelationProperty(sale.Location) },
                 //{ "SKU", NotionUtilities.CreateRichTextProperty(sale.Sku) },
-                { "Product", NotionUtilities.CreateRelationProperty(sale.ProductRelation) },
+                { "Product", NotionUtilities.CreateRelationProperty(sale.Product) },
                 { "Payment", NotionUtilities.CreateSelectProperty(sale.PaymentName) },
                 { "Quantity", NotionUtilities.CreateNumberProperty(sale.Quantity) },
                 { "Subtotal", NotionUtilities.CreateNumberProperty(sale.SubTotal) },
                 { "Discount", NotionUtilities.CreateNumberProperty(sale.Discount / 100) },
                 { "Total", NotionUtilities.CreateNumberProperty(sale.Total) },
                 { "Profit", NotionUtilities.CreateNumberProperty(sale.Profit) },
-                { "Analytic", NotionUtilities.CreateRelationProperty(sale.AnalyticRelation) },
+                { "Analytic", NotionUtilities.CreateRelationProperty(sale.Analysis) },
             };
 
-            await _notion.AddDatabaseRow(database.Id, rowProperties);
+            await _notion.AddDatabaseRow(salesDB.Id, rowProperties);
         }
 
-        return database;
+        return salesDB;
+    }
+
+    private List<DateTime> GetMonthsBetweenDates(DateTime start, DateTime end)
+    {
+        var dates = new List<DateTime>();
+
+        while (start <= end)
+        {
+            dates.Add(start);
+            start = start.AddMonths(1);
+        }
+
+        return dates;
+    }
+
+    private async Task<bool> AnalysisExists(DateTime date, Location location)
+    {
+        var and = new List<object>
+        {
+            NotionUtilities.CreateDateFilter("Date", NotionUtilities.FilterCondition.Equals, date.ToString("yyyy-MM-dd")),
+            NotionUtilities.CreateRelationFilter("Location", NotionUtilities.FilterCondition.Contains, location.Id)
+        };
+
+        var analysisRows = await _notion.QueryDatabase(_secretsManager.GetSecret("notion-analytics-id"), new { and });
+
+        if (analysisRows.Count > 0)
+        {
+            _logger.LogInformation("[{Code}] - {Message}", "DUPLICATE_ANALYSIS", string.Format("Skipped creating row for '{0}' at '{1}'", date.ToString("Y"), location.Properties.Name.Title[0].PlainText));
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<bool> SaleExists(SaleItem sale)
+    {
+        var and = new List<object>
+        {
+            NotionUtilities.CreateTitleFilter("Sale Id", NotionUtilities.FilterCondition.Equals, sale.SaleId.ToString()),
+            NotionUtilities.CreateNumberFilter("Quantity", NotionUtilities.FilterCondition.Equals, sale.Quantity)
+        };
+
+        if (sale.Location != null)
+        { 
+            and.Add(NotionUtilities.CreateRelationFilter("Location", NotionUtilities.FilterCondition.Contains, sale.Location.Id)); 
+        }
+
+        if (sale.Product != null)
+        {
+            and.Add(NotionUtilities.CreateRelationFilter("Product", NotionUtilities.FilterCondition.Contains, sale.Product.Id));
+        }
+
+        var saleRows = await _notion.QueryDatabase(_secretsManager.GetSecret("notion-sales-id"), new { and });
+
+        if (saleRows.Count > 0)
+        {
+            _logger.LogInformation("[{Code}] - {Message}", "DUPLICATE_SALE", string.Format("Skipped creating row for sale id '{0}'", sale.SaleId.ToString()));
+            return true;
+        }
+
+        return false;
     }
 }

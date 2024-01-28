@@ -1,21 +1,20 @@
-﻿using MakersManager.Models.Notion.Block;
-using MakersManager.Models.Notion.Properties;
+﻿using MakersManager.Models.Notion.Properties;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 
 namespace MakersManager.Models.Notion
 {
-    public class AnalyticProperties
+    public class AnalysisProperties
     {
-        public Month Month { get; set; }
+        public Date Date { get; set; }
 
         public LocationProp Location { get; set; }
     }
 
-    public class Month : PageProperty
+    public class Date : PageProperty
     {
-        [JsonProperty("title")]
-        public List<RichText> Title { get; set; }
+        [JsonProperty("date")]
+        public Properties.Date Data { get; set; }
     }
 
     public class LocationProp : PageProperty

@@ -13,11 +13,11 @@ namespace MakersManager.Utilities
             _secretManagerServiceClient = secretManagerServiceClient;
         }
 
-        public string GetSecret(string name, string version)
+        public string GetSecret(string name)
         {
             try
             {
-                var secretVersionName = new SecretVersionName(gcProjectId, name, version);
+                var secretVersionName = new SecretVersionName(gcProjectId, name, GetLatestSecretVersion(name));
                 var response = _secretManagerServiceClient.AccessSecretVersion(secretVersionName);
                 return response.Payload.Data.ToStringUtf8();
             }
@@ -25,6 +25,35 @@ namespace MakersManager.Utilities
             {
                 throw new Exception(ex.Message);
             }
+        }
+
+        private string GetLatestSecretVersion(string name)
+        {
+            switch (name)
+            {
+                case "mvpos-base-url":
+                    return "1";
+                case "mvpos-password":
+                    return "1";
+                case "mvpos-sku-code":
+                    return "1";
+                case "mvpos-user":
+                    return "1";
+                case "notion-analytics-id":
+                    return "1";
+                case "notion-base-url":
+                    return "1";
+                case "notion-locations-id":
+                    return "1";
+                case "notion-products-id":
+                    return "1";
+                case "notion-sales-id":
+                    return "1";
+                case "notion-token":
+                    return "1";
+                default:
+                    return null;
+            };
         }
     }
 }

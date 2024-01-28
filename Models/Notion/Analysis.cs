@@ -2,9 +2,9 @@
 
 namespace MakersManager.Models.Notion
 {
-    public class Analytic : Page
+    public class Analysis : Page
     {
         [JsonProperty("properties")]
-        public AnalyticProperties Properties { get; set; }
+        public AnalysisProperties Properties { get; set; }
     }
 }

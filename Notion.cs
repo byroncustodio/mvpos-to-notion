@@ -1,14 +1,13 @@
 ﻿using Google.Cloud.SecretManager.V1;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using MakersManager.Models.Notion.Block;
 using MakersManager.Models.Notion.Database;
 using MakersManager.Utilities;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Google.Type;
 
 namespace MakersManager
 {
@@ -22,8 +21,8 @@ namespace MakersManager
             _secretsManager = new SecretsManager(secretManagerServiceClient);
 
             _httpClient = httpClient;
-            _httpClient.BaseAddress = new Uri(_secretsManager.GetSecret("notion-base-url", "1"));
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _secretsManager.GetSecret("notion-token", "1"));
+            _httpClient.BaseAddress = new Uri(_secretsManager.GetSecret("notion-base-url"));
+            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _secretsManager.GetSecret("notion-token"));
             _httpClient.DefaultRequestHeaders.Add("Notion-Version", "2022-06-28");
         }
 

@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MakersManager.Models.MVPOS
 {
@@ -45,32 +46,12 @@ namespace MakersManager.Models.MVPOS
             }
         }
         public Location Location { get; set; }
-        public List<object> LocationRelation
-        {
-            get
-            {
-                return Location == null ? new List<object>() : new List<object>
-                {
-                    new { id = Location.Id }
-                };
-            }
-        }
 
         [JsonProperty("item_number")]
         public string Sku { get; set; }
 
         [JsonIgnore]
         public Product Product { get; set; }
-        public List<object> ProductRelation
-        {
-            get
-            {
-                return Product == null ? new List<object>() : new List<object>
-                {
-                    new { id = Product.Id }
-                };
-            }
-        }
 
         [JsonProperty("name")]
         public string Name { get; set; }
@@ -101,7 +82,10 @@ namespace MakersManager.Models.MVPOS
         {
             get
             {
-                var numOfVendors = Enum.GetNames(typeof(MakersManager.MVPOS.Vendor)).Length;
+                var numOfVendors = Enum.GetNames(typeof(MakersManager.MVPOS.Vendor))
+                    .ToList()
+                    .Where(vendor => vendor != Enum.GetName(typeof(MakersManager.MVPOS.Vendor), MakersManager.MVPOS.Vendor.Shared))
+                    .Count();
 
                 if (Product == null)
                 {
@@ -114,7 +98,7 @@ namespace MakersManager.Models.MVPOS
                         return Total / numOfVendors;
                     }
                 }
-                else if (Product.Properties.Vendor.Select.Name == "Shared")
+                else if (Product.Properties.Vendor.Select.Name == Enum.GetName(typeof(MakersManager.MVPOS.Vendor), MakersManager.MVPOS.Vendor.Shared))
                 {
                     return Total / numOfVendors;
                 }
@@ -126,17 +110,7 @@ namespace MakersManager.Models.MVPOS
         }
 
         [JsonIgnore]
-        public Analytic Analytic { get; set; }
-        public List<object> AnalyticRelation
-        {
-            get
-            {
-                return Analytic == null ? new List<object>() : new List<object>
-                {
-                    new { id = Analytic.Id }
-                };
-            }
-        }
+        public Analysis Analysis { get; set; }
     }
 
     public class Payment

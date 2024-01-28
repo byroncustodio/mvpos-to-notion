@@ -22,7 +22,7 @@ namespace MakersManager
             _secretsManager = new SecretsManager(secretManagerServiceClient);
 
             _httpClient = httpClient;
-            _httpClient.BaseAddress = new Uri(_secretsManager.GetSecret("mvpos-base-url", "1"));
+            _httpClient.BaseAddress = new Uri(_secretsManager.GetSecret("mvpos-base-url"));
         }
 
         public async Task Login()
@@ -31,7 +31,7 @@ namespace MakersManager
             await CreateSession();
 
             string endpoint = "api/v1/users/login";
-            string queryParams = string.Format("email_address={0}&password={1}&password_reset_token=", _secretsManager.GetSecret("mvpos-user", "1"), _secretsManager.GetSecret("mvpos-password", "1"));
+            string queryParams = string.Format("email_address={0}&password={1}&password_reset_token=", _secretsManager.GetSecret("mvpos-user"), _secretsManager.GetSecret("mvpos-password"));
 
             HttpRequestMessage httpRequest = new()
             {
@@ -98,9 +98,9 @@ namespace MakersManager
                 Method = HttpMethod.Get,
                 RequestUri = new Uri(string.Join("?", endpoint, queryParams), UriKind.Relative),
                 Headers =
-                    {
-                        { HttpRequestHeader.Cookie.ToString(), _sessionCookie }
-                    }
+                {
+                    { HttpRequestHeader.Cookie.ToString(), _sessionCookie }
+                }
             };
 
             using HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest);
@@ -117,7 +117,8 @@ namespace MakersManager
         public enum Vendor
         {
             LittleSaika = 1,
-            SukitaStudio
+            SukitaStudio,
+            Shared
         }
 
         public enum StoreLocation
