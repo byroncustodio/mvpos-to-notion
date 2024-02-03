@@ -1,6 +1,6 @@
 ﻿using Google.Cloud.SecretManager.V1;
+using MakersManager.Models.Notion;
 using MakersManager.Models.Notion.Block;
-using MakersManager.Models.Notion.Database;
 using MakersManager.Utilities;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -25,6 +25,7 @@ namespace MakersManager
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _secretsManager.GetSecret("notion-token"));
             _httpClient.DefaultRequestHeaders.Add("Notion-Version", "2022-06-28");
         }
+
 
         public async Task<JArray> QueryDatabase(string databaseId, object filter = null)
         {
@@ -55,6 +56,11 @@ namespace MakersManager
             string content = await httpResponse.Content.ReadAsStringAsync();
             dynamic deserializedContent = JsonConvert.DeserializeObject(content) ?? throw new Exception("Deserialized JSON resulted in null value.");
             return deserializedContent["results"];
+        }
+
+        public async Task<List<T>> QueryDatabase<T>(string databaseId, object filter = null)
+        {
+            return (await QueryDatabase(databaseId, filter)).ToObject<List<T>>();
         }
 
         public async Task<Database> CreateDatabase(string parentId, string dbTitle, object properties)
@@ -141,6 +147,28 @@ namespace MakersManager
             {
                 var message = await httpResponse.Content.ReadAsStringAsync();
                 throw new Exception(message); 
+            }
+        }
+
+        public async Task UpdateDatabaseRow(string databaseId, object properties)
+        {
+            var data = new
+            {
+                properties
+            };
+
+            HttpRequestMessage httpRequest = new()
+            {
+                Method = HttpMethod.Patch,
+                RequestUri = new Uri(string.Format("v1/pages/{0}", databaseId), UriKind.Relative),
+                Content = new StringContent(JsonConvert.SerializeObject(data), System.Text.Encoding.UTF8, "application/json")
+            };
+
+            using HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest);
+            if (!httpResponse.IsSuccessStatusCode)
+            {
+                var message = await httpResponse.Content.ReadAsStringAsync();
+                throw new Exception(message);
             }
         }
     }

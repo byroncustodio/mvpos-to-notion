@@ -1,4 +1,6 @@
-﻿using MakersManager.Models.Notion;
+﻿using MakersManager.Models.Notion.Custom.Summary;
+using MakersManager.Models.Notion.Custom.Location;
+using MakersManager.Models.Notion.Custom.Product;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -110,7 +112,10 @@ namespace MakersManager.Models.MVPOS
         }
 
         [JsonIgnore]
-        public Analysis Analysis { get; set; }
+        public Summary Summary { get; set; }
+
+        [JsonIgnore]
+        public bool NeedsReview { get; set; }
     }
 
     public class Payment

@@ -1,10 +1,10 @@
 ﻿using Newtonsoft.Json;
 
-namespace MakersManager.Models.Notion
+namespace MakersManager.Models.Notion.Custom.Location
 {
     public class Location : Page
     {
         [JsonProperty("properties")]
-        public LocationProperties Properties { get; set; }
+        public Properties Properties { get; set; }
     }
 }

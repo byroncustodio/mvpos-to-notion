@@ -1,9 +1,9 @@
-﻿using Newtonsoft.Json;
-using MakersManager.Models.Notion.Block;
-using System.Collections.Generic;
+﻿using MakersManager.Models.Notion.Block;
 using MakersManager.Models.Notion.Parent;
+using Newtonsoft.Json;
+using System.Collections.Generic;
 
-namespace MakersManager.Models.Notion.Database
+namespace MakersManager.Models.Notion
 {
     public class Database
     {

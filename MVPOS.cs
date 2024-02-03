@@ -1,10 +1,9 @@
 ﻿using Google.Cloud.SecretManager.V1;
-using Newtonsoft.Json;
 using MakersManager.Models.MVPOS;
 using MakersManager.Utilities;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -15,7 +14,7 @@ namespace MakersManager
     {
         private readonly SecretsManager _secretsManager;
         private readonly HttpClient _httpClient;
-        private string _sessionCookie = string.Empty;
+        private string _sessionCookie = Guid.NewGuid().ToString().Replace("-", "").Substring(0, 26);
 
         public MVPOS(HttpClient httpClient, SecretManagerServiceClient secretManagerServiceClient)
         {
@@ -27,9 +26,6 @@ namespace MakersManager
 
         public async Task Login()
         {
-            // Gets and stores session cookie
-            await CreateSession();
-
             string endpoint = "api/v1/users/login";
             string queryParams = string.Format("email_address={0}&password={1}&password_reset_token=", _secretsManager.GetSecret("mvpos-user"), _secretsManager.GetSecret("mvpos-password"));
 
@@ -49,18 +45,6 @@ namespace MakersManager
                 var message = await httpResponse.Content.ReadAsStringAsync();
                 throw new Exception(message);
             }
-        }
-
-        private async Task CreateSession()
-        {
-            using HttpResponseMessage httpResponse = await _httpClient.GetAsync("/");
-            if (!httpResponse.IsSuccessStatusCode) 
-            {
-                var message = await httpResponse.Content.ReadAsStringAsync();
-                throw new Exception(message); 
-            }
-
-            _sessionCookie = httpResponse.Headers.SingleOrDefault(header => header.Key == "Set-Cookie").Value.First().Replace(" ", "").Split(";").Where(x => x.StartsWith("PHPSESSID")).First();
         }
 
         public async Task SetStoreLocation(StoreLocation location)

@@ -39,7 +39,7 @@ namespace MakersManager.Utilities
                     return "1";
                 case "mvpos-user":
                     return "1";
-                case "notion-analytics-id":
+                case "notion-summary-id":
                     return "1";
                 case "notion-base-url":
                     return "1";
