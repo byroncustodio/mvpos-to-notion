@@ -43,6 +43,8 @@ namespace MakersManager.Utilities
                     return "1";
                 case "notion-base-url":
                     return "1";
+                case "notion-inventory-id":
+                    return "1";
                 case "notion-locations-id":
                     return "1";
                 case "notion-products-id":

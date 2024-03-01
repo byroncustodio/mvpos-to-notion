@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MakersManager.Models.Notion.Custom.Inventory;
 
 namespace MakersManager.Models.MVPOS
 {
@@ -113,6 +114,9 @@ namespace MakersManager.Models.MVPOS
 
         [JsonIgnore]
         public Summary Summary { get; set; }
+
+        [JsonIgnore]
+        public Inventory Inventory { get; set; }
 
         [JsonIgnore]
         public bool NeedsReview { get; set; }

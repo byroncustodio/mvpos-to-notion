@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MakersManager.Models.Notion.Custom.Inventory;
 
 namespace MakersManager;
 
@@ -136,6 +137,7 @@ public class Function : IHttpFunction
                         .Where(product => (new List<MVPOS.Vendor> { Vendor, MVPOS.Vendor.Shared })
                                             .Contains((MVPOS.Vendor)Enum.Parse(typeof(MVPOS.Vendor), product.Properties.Vendor.Select.Name)));
         var summaries = await _notion.QueryDatabase<Summary>(_secretsManager.GetSecret("notion-summary-id"));
+        var inventories = await _notion.QueryDatabase<Inventory>(_secretsManager.GetSecret("notion-inventory-id"));
         var salesDB = await _notion.GetDatabase(_secretsManager.GetSecret("notion-sales-id"));
         var importThreshold = 0;
 
@@ -183,6 +185,15 @@ public class Function : IHttpFunction
                                        .FirstOrDefault();
                 if (summary != null) { sale.Summary = summary; }
 
+                if (sale.Product != null)
+                {
+                    var inventory = inventories.Where(inventory => inventory.Properties.Product.Relations[0].Id == sale.Product.Id
+                                                                    && inventory.Properties.Location.Relations[0].Id == sale.Location.Id)
+                                               .FirstOrDefault();
+                    if (inventory != null) { sale.Inventory = inventory; }
+                    else { sale.NeedsReview = true; }
+                }
+
                 #endregion
 
                 #region Import to Notion
@@ -203,6 +214,7 @@ public class Function : IHttpFunction
                     { "Status", NotionUtilities.CreateStatusProperty(sale.NeedsReview ? "Review" : "Done") },
                     { "SKU", NotionUtilities.CreateRichTextProperty(sale.Sku) },
                     { "Name", NotionUtilities.CreateRichTextProperty(sale.Name) },
+                    { "Inventory", NotionUtilities.CreateRelationProperty(sale.Inventory) },
                 };
 
                 await _notion.AddDatabaseRow(salesDB.Id, rowProperties);
