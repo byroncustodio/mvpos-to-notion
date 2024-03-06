@@ -6,7 +6,7 @@ namespace MakersManager.Utilities
     public class SecretsManager
     {
         private readonly SecretManagerServiceClient _secretManagerServiceClient;
-        private const string gcProjectId = "makers-411506";
+        private const string GcProjectId = "makers-411506";
 
         public SecretsManager(SecretManagerServiceClient secretManagerServiceClient) 
         {
@@ -17,7 +17,7 @@ namespace MakersManager.Utilities
         {
             try
             {
-                var secretVersionName = new SecretVersionName(gcProjectId, name, GetLatestSecretVersion(name));
+                var secretVersionName = new SecretVersionName(GcProjectId, name, GetLatestSecretVersion(name));
                 var response = _secretManagerServiceClient.AccessSecretVersion(secretVersionName);
                 return response.Payload.Data.ToStringUtf8();
             }
@@ -29,33 +29,21 @@ namespace MakersManager.Utilities
 
         private string GetLatestSecretVersion(string name)
         {
-            switch (name)
+            return name switch
             {
-                case "mvpos-base-url":
-                    return "1";
-                case "mvpos-password":
-                    return "1";
-                case "mvpos-sku-code":
-                    return "1";
-                case "mvpos-user":
-                    return "1";
-                case "notion-summary-id":
-                    return "1";
-                case "notion-base-url":
-                    return "1";
-                case "notion-inventory-id":
-                    return "1";
-                case "notion-locations-id":
-                    return "1";
-                case "notion-products-id":
-                    return "1";
-                case "notion-sales-id":
-                    return "1";
-                case "notion-token":
-                    return "1";
-                default:
-                    return null;
+                "mvpos-base-url" => "1",
+                "mvpos-password" => "1",
+                "mvpos-sku-code" => "1",
+                "mvpos-user" => "1",
+                "notion-base-url" => "1",
+                "notion-locations-id" => "1",
+                "notion-products-id" => "1",
+                "notion-sales-id" => "1",
+                "notion-summary-id" => "1",
+                "notion-token" => "1",
+                _ => null
             };
+            ;
         }
     }
 }
