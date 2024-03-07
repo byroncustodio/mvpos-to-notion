@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using MvposSDK;
+using NotionSDK;
 
 namespace MakersManager
 {

@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Linq;
-using MakersManager.Models.Notion.Custom.Location;
-using MakersManager.Models.Notion.Custom.Product;
-using MakersManager.Models.Notion.Custom.Summary;
-using MakersManager.Utilities;
+using MakersManager.Models.Notion;
 using MvposSDK.Models;
 
-namespace MakersManager.Models;
+namespace MakersManager.Models.Mvpos;
 
 public class CustomSaleItem : SaleItem
 {
@@ -31,7 +28,7 @@ public class CustomSaleItem : SaleItem
                 return Total / numOfVendors;
             }
 
-            if (Product.Properties.Vendor.Select.Name == Enum.GetName(typeof(Enums.Vendor), Enums.Vendor.Shared))
+            if (Product.Properties.Vendor.Data.Name == Enum.GetName(typeof(Enums.Vendor), Enums.Vendor.Shared))
             {
                 return Total / numOfVendors;
             }
