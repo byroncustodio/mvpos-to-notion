@@ -3,11 +3,11 @@ using NotionSDK.Models;
 
 namespace MakersManager.Models.Notion;
 
-public class Summary : Database
+public class Summary : Page
 {
-    public Summary(Database database) : base(database)
+    public Summary(Page page) : base(page)
     {
-        Properties = database.Properties.ToObject<SummaryProperties>();
+        Properties = page.Properties.ToObject<SummaryProperties>();
     }
         
     [JsonProperty("properties")]

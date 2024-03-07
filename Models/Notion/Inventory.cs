@@ -3,11 +3,11 @@ using NotionSDK.Models;
 
 namespace MakersManager.Models.Notion;
 
-public class Inventory : Database
+public class Inventory : Page
 {
-    public Inventory(Database database) : base(database)
+    public Inventory(Page page) : base(page)
     {
-        Properties = database.Properties.ToObject<InventoryProperties>();
+        Properties = page.Properties.ToObject<InventoryProperties>();
     }
         
     [JsonProperty("properties")]

@@ -12,6 +12,7 @@ using MakersManager.Models.Mvpos;
 using MakersManager.Models.Notion;
 using MvposSDK;
 using NotionSDK;
+using NotionSDK.Enums;
 using NotionSDK.Extensions;
 using NotionSDK.Models.Block;
 using NotionSDK.Models.Property;
@@ -30,7 +31,7 @@ public class Function : IHttpFunction
     private DateTime FromDate { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-1);
     private DateTime ToDate { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddSeconds(-1);
     private int Limit { get; set; }
-    private Enums.Vendor Vendor { get; set; } = Enums.Vendor.LittleSaika;
+    private List<string> Vendors { get; set; } = new();
     private List<Mvpos.StoreLocation> StoreLocations { get; set; } = Enum.GetValues(typeof(Mvpos.StoreLocation)).Cast<Mvpos.StoreLocation>().ToList();
 
     public Function(ILogger<Function> logger, SecretManagerServiceClient secretManagerServiceClient, Mvpos mvpos, Notion notion)
@@ -73,9 +74,10 @@ public class Function : IHttpFunction
             Limit = int.Parse(query["limit"]);
         }
 
-        if (query.ContainsKey("vendor"))
+        if (query.ContainsKey("vendors"))
         {
-            Vendor = (Enums.Vendor)int.Parse(query["vendor"]);
+            Vendors = query["vendors"].ToString().Split(",").ToList();
+            Vendors.Add("Shared");
         }
 
         if (query.ContainsKey("locations"))
@@ -138,67 +140,19 @@ public class Function : IHttpFunction
 
             var products = (await _notion.QueryDatabase(_secretsManager.GetSecretFromString("notion-products-id"))).Results
                 .Select(result => new Product(result))
-                .Where(product => 
-                    new List<Enums.Vendor> { Vendor, Enums.Vendor.Shared }
-                        .Contains((Enums.Vendor)Enum.Parse(typeof(Enums.Vendor), product.Properties.Vendor.Data.Name)))
+                .Where(product => !Vendors.Any() || Vendors.Contains(product.Properties.Vendor.Data.Name))
                 .ToList();
                 
             var summaries = (await _notion.QueryDatabase(_secretsManager.GetSecretFromString("notion-summary-id"))).Results
                 .Select(result => new Summary(result))
                 .ToList();
+            
             var salesMetadata = await _notion.GetDatabaseMetadata(_secretsManager.GetSecretFromString("notion-sales-id"));
             var importThreshold = 0;
 
-            foreach (var sale in _sales)
+            foreach (var sale in _sales.Where(sale => ValidateSale(sale, products)))
             {
-                var isEligibleForImport = false;
-
-                var product = products.Where(product =>
-                {
-                    if (product.Properties.Sku.Data[0].PlainText.Split(",").Contains(sale.Sku))
-                    {
-                        return true;
-                    }
-
-                    if (product.Properties.Name.Data[0].PlainText != sale.Name
-                        && (product.Properties.Alias.Data.Count <= 0
-                            || product.Properties.Alias.Data[0].PlainText != sale.Name))
-                    {
-                        return false;
-                    }
-                    
-                    sale.NeedsReview = true;
-                    return true;
-                }).FirstOrDefault();
-
-                if (product != null)
-                {
-                    sale.Product = product;
-                    isEligibleForImport = true;
-                }
-                else if (string.IsNullOrEmpty(sale.Sku) || string.IsNullOrEmpty(sale.Name))
-                {
-                    sale.NeedsReview = true;
-                    isEligibleForImport = true;
-                }
-
-                if (!isEligibleForImport) { continue; }
-
-                #region Set Relation Properties
-
-                var location = locations.FirstOrDefault(location => location.Properties.Name.Data[0].PlainText == sale.LocationName);
-                    
-                if (location != null) { sale.Location = location; }
-
-                var summary = summaries
-                    .FirstOrDefault(summary => DateTime.Parse(summary.Properties.Date.Data.Start).ToString("Y") == sale.SaleDate.ToString("Y")
-                                               && summary.Properties.Location.Data[0].Id == sale.Location.Id);
-                    
-                if (summary != null) { sale.Summary = summary; }
-
-                #endregion
-
-                #region Import to Notion
+                PopulateRelations(sale, locations, summaries);
 
                 var rowProperties = new PropertyBuilder();
                 rowProperties.Add("Sale Id", new Title(sale.SaleId.ToString()));
@@ -210,15 +164,13 @@ public class Function : IHttpFunction
                 rowProperties.Add("Subtotal", new Number(sale.SubTotal));
                 rowProperties.Add("Discount", new Number(sale.Discount / 100));
                 rowProperties.Add("Total", new Number(sale.Total));
-                rowProperties.Add("Profit", new Number(sale.NeedsReview ? 0 : sale.Profit));
+                rowProperties.Add("Profit", new Number(sale.NeedsReview ? 0 : sale.GetProfit(Vendors)));
                 rowProperties.Add("Summary", new Relation(sale.Summary));
                 rowProperties.Add("Status", new Status(sale.NeedsReview ? "Review" : "Done"));
                 rowProperties.Add("SKU", new RichText(sale.Sku));
                 rowProperties.Add("Name", new RichText(sale.Name));
 
                 await _notion.AddDatabaseRow(salesMetadata.Id, rowProperties.Build());
-
-                #endregion
 
                 // update limit filter
 
@@ -253,8 +205,8 @@ public class Function : IHttpFunction
     private async Task<bool> SummaryExists(DateTime date, Location location)
     {
         var filter = new QueryFilter();
-        filter.Add<Date>("Date", Comparator.Equals, date.ToString("yyyy-MM-dd"));
-        filter.Add<Relation>("Location", Comparator.Contains, location.Id);
+        filter.Add<Date, DateComparator>("Date", DateComparator.Equals, date.ToString("yyyy-MM-dd"));
+        filter.Add<Relation, RelationComparator>("Location", RelationComparator.Contains, location.Id);
 
         var summaryRows = (await _notion.QueryDatabase(_secretsManager.GetSecretFromString("notion-summary-id"), filter.Build(Operand.And))).Results;
 
@@ -269,6 +221,55 @@ public class Function : IHttpFunction
         return true;
     }
 
+    private static bool ValidateSale(CustomSaleItem sale, IEnumerable<Product> products)
+    {
+        var product = products.Where(product =>
+        {
+            if (product.Properties.Sku.Data[0].PlainText.Split(",").Contains(sale.Sku))
+            {
+                return true;
+            }
+
+            if (product.Properties.Name.Data[0].PlainText != sale.Name
+                && (product.Properties.Alias.Data.Count <= 0
+                    || product.Properties.Alias.Data[0].PlainText != sale.Name))
+            {
+                return false;
+            }
+                    
+            sale.NeedsReview = true;
+            return true;
+        }).FirstOrDefault();
+
+        if (product != null)
+        {
+            sale.Product = product;
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(sale.Sku) && !string.IsNullOrEmpty(sale.Name))
+        {
+            return false;
+        }
+        
+        sale.NeedsReview = true;
+        return true;
+
+    }
+
+    private static void PopulateRelations(CustomSaleItem sale, IEnumerable<Location> locations, IEnumerable<Summary> summaries)
+    {
+        var location = locations.FirstOrDefault(location => location.Properties.Name.Data[0].PlainText == sale.LocationName);
+                    
+        if (location != null) { sale.Location = location; }
+
+        var summary = summaries
+            .FirstOrDefault(summary => DateTime.Parse(summary.Properties.Date.Data.Start).ToString("Y") == sale.SaleDate.ToString("Y")
+                                       && summary.Properties.Location.Data[0].Id == sale.Location.Id);
+                    
+        if (summary != null) { sale.Summary = summary; }
+    }
+    
     /*private async Task<bool> SaleExists(CustomSaleItem sale)
     {
         var and = new List<object>
