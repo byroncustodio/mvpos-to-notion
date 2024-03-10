@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using MakersManager.Models.Notion;
 using MvposSDK.Models;
@@ -17,6 +16,8 @@ public class CustomSaleItem : SaleItem
     public Location Location { get; set; }
     
     public Summary Summary { get; set; }
+    
+    public Inventory Inventory { get; set; }
 
     public decimal GetProfit(List<string> vendors)
     {

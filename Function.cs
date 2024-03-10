@@ -1,15 +1,15 @@
-using Google.Cloud.Functions.Framework;
-using Google.Cloud.Functions.Hosting;
-using Google.Cloud.SecretManager.V1;
-using MakersManager.Utilities;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Google.Cloud.Functions.Framework;
+using Google.Cloud.Functions.Hosting;
+using Google.Cloud.SecretManager.V1;
 using MakersManager.Models.Mvpos;
 using MakersManager.Models.Notion;
+using MakersManager.Utilities;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using MvposSDK;
 using NotionSDK;
 using NotionSDK.Enums;
@@ -89,17 +89,26 @@ public class Function : IHttpFunction
 
         try
         {
-            await _mvpos.Users.Login(_secretsManager.GetSecretFromString("mvpos-user"), _secretsManager.GetSecretFromString("mvpos-password"));
-            _notion.Configure(_secretsManager.GetSecretFromString("notion-base-url"), _secretsManager.GetSecretFromString("notion-token"));
-            
+            await _mvpos.Users.Login(_secretsManager.GetSecretFromString("mvpos-user"),
+                _secretsManager.GetSecretFromString("mvpos-password"));
+            _notion.Configure(_secretsManager.GetSecretFromString("notion-base-url"),
+                _secretsManager.GetSecretFromString("notion-token"));
+
             // get sales
 
-            var locations = (await _notion.QueryDatabase(_secretsManager.GetSecretFromString("notion-locations-id"))).Results
+            var locationPages = (await _notion.QueryDatabase(_secretsManager.GetSecretFromString("notion-locations-id")))
+                .Results
                 .Select(result => new Location(result))
                 .ToList();
-            
-            var summaryMetadata = await _notion.GetDatabaseMetadata(_secretsManager.GetSecretFromString("notion-summary-id"));
 
+            var summaryDatabase =
+                await _notion.GetDatabaseMetadata(_secretsManager.GetSecretFromString("notion-summary-id"));
+
+            var summaryPages = (await _notion.QueryDatabase(_secretsManager.GetSecretFromString("notion-summary-id")))
+                .Results
+                .Select(result => new Summary(result))
+                .ToList();
+            
             foreach (var storeLocation in StoreLocations)
             {
                 await _mvpos.Users.SetStoreLocation(storeLocation);
@@ -112,25 +121,29 @@ public class Function : IHttpFunction
 
                 #region Add Summary If Not Exists
 
-                foreach (var date in GetMonthsBetweenDates(FromDate, ToDate).Where(date => _sales.Any(sale => sale.LocationId == (int)storeLocation && sale.SaleDate.ToString("Y") == date.ToString("Y"))))
+                var location = locationPages.FirstOrDefault(location => location.Properties.Id.Value == (int)storeLocation);
+
+                if (location != null)
                 {
-                    var location = locations.FirstOrDefault(location => location.Properties.Id.Value == (int)storeLocation);
-
-                    if (location != null)
+                    foreach (var date in GetMonthsBetweenDates(FromDate, ToDate).Where(date =>
+                                 _sales.Any(sale =>
+                                     sale.LocationId == (int)storeLocation &&
+                                     sale.SaleDate.ToString("Y") == date.ToString("Y")) &&
+                                 !summaryPages.Any(summary => 
+                                     summary.Properties.Date.Data.Start == date.ToString("yyyy-MM-dd") &&
+                                     summary.Properties.Location.Data[0].Id == location.Id)))
                     {
-                        if (await SummaryExists(date, location)) { continue; }
-
                         var rowProperties = new PropertyBuilder();
                         rowProperties.Add("Date", new Date(new DateData { Start = date.ToString("yyyy-MM-dd") }));
                         rowProperties.Add("Location", new Relation(new List<PageReference> { new() { Id = location.Id } }));
 
-                        await _notion.AddDatabaseRow(summaryMetadata.Id, rowProperties.Build());
+                        await _notion.AddDatabaseRow(summaryDatabase.Id, rowProperties.Build());
                     }
-                    else
-                    {
-                        _logger.LogError("[{Code}] - {Message}", "MISSING_LOCATION",
-                            $"Location specified in request does not exist in Notion database. Create new row for location id: '{storeLocation.ToString()}'");
-                    }
+                }
+                else
+                {
+                    _logger.LogError("[{Code}] - {Message}", "MISSING_LOCATION",
+                        $"Location specified in request does not exist in Notion database. Create new row for location id: '{storeLocation.ToString()}'");
                 }
 
                 #endregion
@@ -138,21 +151,22 @@ public class Function : IHttpFunction
 
             // filter sales by vendor
 
-            var products = (await _notion.QueryDatabase(_secretsManager.GetSecretFromString("notion-products-id"))).Results
+            var products = (await _notion.QueryDatabase(_secretsManager.GetSecretFromString("notion-products-id")))
+                .Results
                 .Select(result => new Product(result))
                 .Where(product => !Vendors.Any() || Vendors.Contains(product.Properties.Vendor.Data.Name))
                 .ToList();
-                
-            var summaries = (await _notion.QueryDatabase(_secretsManager.GetSecretFromString("notion-summary-id"))).Results
-                .Select(result => new Summary(result))
+
+            var inventories = (await _notion.QueryDatabase(_secretsManager.GetSecretFromString("notion-inventory-id")))
+                .Results
+                .Select(result => new Inventory(result))
                 .ToList();
             
             var salesMetadata = await _notion.GetDatabaseMetadata(_secretsManager.GetSecretFromString("notion-sales-id"));
-            var importThreshold = 0;
 
-            foreach (var sale in _sales.Where(sale => ValidateSale(sale, products)))
+            foreach (var sale in Limit <= 0 ? _sales.Where(sale => ValidateSale(sale, products)) : _sales.Where(sale => ValidateSale(sale, products)).Take(Limit))
             {
-                PopulateRelations(sale, locations, summaries);
+                PopulateRelations(sale, locationPages, inventories, summaryPages);
 
                 var rowProperties = new PropertyBuilder();
                 rowProperties.Add("Sale Id", new Title(sale.SaleId.ToString()));
@@ -169,28 +183,26 @@ public class Function : IHttpFunction
                 rowProperties.Add("Status", new Status(sale.NeedsReview ? "Review" : "Done"));
                 rowProperties.Add("SKU", new RichText(sale.Sku));
                 rowProperties.Add("Name", new RichText(sale.Name));
-
+                rowProperties.Add("Inventory", new Relation(sale.Inventory));
+                
                 await _notion.AddDatabaseRow(salesMetadata.Id, rowProperties.Build());
-
-                // update limit filter
-
-                if (Limit <= 0) continue;
-                    
-                importThreshold++;
-                    
-                if (importThreshold == Limit) { break; }
             }
 
             await context.Response.WriteAsync($"Successfully generated report. Report URL: {salesMetadata.Url}");
         }
         catch (Exception ex)
         {
-            _logger.LogError("{error}", ex.Message);
+            _logger.LogError("[{Code}] - {Message}", "THROWN_EXCEPTION", $"{ex.Message}");
+            await context.Response.WriteAsync("There was a problem running the application.");
         }
     }
 
+    
+    
     private IEnumerable<DateTime> GetMonthsBetweenDates(DateTime start, DateTime end)
     {
+        start = new DateTime(start.Year, start.Month, 1);
+        end = new DateTime(end.Year, end.Month, end.AddMonths(1).AddSeconds(-1).Day);
         var dates = new List<DateTime>();
 
         while (start <= end)
@@ -257,12 +269,29 @@ public class Function : IHttpFunction
 
     }
 
-    private static void PopulateRelations(CustomSaleItem sale, IEnumerable<Location> locations, IEnumerable<Summary> summaries)
+    private static void PopulateRelations(CustomSaleItem sale, IEnumerable<Location> locations, IEnumerable<Inventory> inventories, IEnumerable<Summary> summaries)
     {
         var location = locations.FirstOrDefault(location => location.Properties.Name.Data[0].PlainText == sale.LocationName);
                     
         if (location != null) { sale.Location = location; }
 
+        Inventory inventory = null;
+        
+        if (sale.Product != null && sale.Location != null)
+        {
+            inventory = inventories.FirstOrDefault(inv => inv.Properties.Product.Data.Count > 0 && inv.Properties.Product.Data[0].Id == sale.Product.Id && 
+                                                          inv.Properties.Location.Data.Count > 0 && inv.Properties.Location.Data[0].Id == sale.Location.Id);
+        }
+        else if (sale.Product == null && sale.Location != null)
+        {
+            inventory = inventories.FirstOrDefault(inv => inv.Properties.Location.Data.Count > 0 && inv.Properties.Location.Data[0].Id == sale.Location.Id);
+        }
+        
+        if (inventory != null)
+        {
+            sale.Inventory = inventory;
+        }
+        
         var summary = summaries
             .FirstOrDefault(summary => DateTime.Parse(summary.Properties.Date.Data.Start).ToString("Y") == sale.SaleDate.ToString("Y")
                                        && summary.Properties.Location.Data[0].Id == sale.Location.Id);
