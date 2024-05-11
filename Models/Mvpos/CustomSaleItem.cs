@@ -2,6 +2,7 @@
 using System.Linq;
 using MakersManager.Models.Notion;
 using MvposSDK.Models;
+using Location = MakersManager.Models.Notion.Location;
 
 namespace MakersManager.Models.Mvpos;
 
@@ -34,7 +35,7 @@ public class CustomSaleItem : SaleItem
             return Total / numOfVendors;
         }
 
-        if (Product.Properties.Vendor.Data.Name == vendors.FirstOrDefault(v => v == "Shared"))
+        if (Product.Properties.Vendor.Data?.Name == vendors.FirstOrDefault(v => v == "Shared"))
         {
             return Total / numOfVendors;
         }
