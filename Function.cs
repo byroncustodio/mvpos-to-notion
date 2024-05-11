@@ -48,25 +48,38 @@ public class Function : IHttpFunction
 
         var query = context.Request.Query;
 
-        if (query.ContainsKey("month") && query.ContainsKey("year"))
+        if (query.ContainsKey("range"))
         {
-            FromDate = new DateTime(int.Parse(query["year"]), int.Parse(query["month"]), 1);
-            ToDate = FromDate.AddMonths(1).AddSeconds(-1);
-        }
-        else if (query.ContainsKey("month"))
-        {
-            FromDate = new DateTime(DateTime.Now.Year, int.Parse(query["month"]), 1);
-            ToDate = FromDate.AddMonths(1).AddSeconds(-1);
-        }
-        else if (query.ContainsKey("year"))
-        {
-            FromDate = new DateTime(int.Parse(query["year"]), DateTime.Now.Month, 1);
-            ToDate = FromDate.AddMonths(1).AddSeconds(-1);
-        }
-        else if (query.ContainsKey("from") && query.ContainsKey("to"))
-        {
-            FromDate = DateTime.Parse(query["from"]);
-            ToDate = DateTime.Parse(query["to"]);
+            var range = query["range"].ToString();
+
+            switch (range)
+            {
+                case "ByYearMonth":
+                    if (query.ContainsKey("month") && query.ContainsKey("year"))
+                    {
+                        FromDate = new DateTime(int.Parse(query["year"]), int.Parse(query["month"]), 1);
+                        ToDate = FromDate.AddMonths(1).AddSeconds(-1);
+                    }
+                    break;
+                case "ByYear":
+                    if (query.ContainsKey("year"))
+                    {
+                        FromDate = new DateTime(int.Parse(query["year"]), 1, 1);
+                        ToDate = new DateTime(int.Parse(query["year"]), 12, 31);
+                    }
+                    break;
+                case "PastWeek":
+                    FromDate = DateTime.Now.AddDays(-7).Date;
+                    ToDate = DateTime.Now.Date.AddSeconds(-1);
+                    break;
+                case "Custom":
+                    if (query.ContainsKey("from") && query.ContainsKey("to"))
+                    {
+                        FromDate = DateTime.Parse(query["from"]);
+                        ToDate = DateTime.Parse(query["to"]);
+                    }
+                    break;
+            }
         }
 
         if (query.ContainsKey("limit"))
@@ -142,7 +155,7 @@ public class Function : IHttpFunction
 
                         if (!Debug)
                         {
-                            await _notion.AddDatabaseRow(summaryDatabase.Id ?? throw new InvalidOperationException(), rowProperties.Build());
+                            summaryPages.Add(new Summary(await _notion.AddDatabaseRow(summaryDatabase.Id ?? throw new InvalidOperationException(), rowProperties.Build())));
                         }
                     }
                 }
