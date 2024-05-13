@@ -212,7 +212,7 @@ public class Function : IHttpFunction
         }
         catch (Exception ex)
         {
-            _logger.LogError("[{Code}] - {Message}", "THROWN_EXCEPTION", $"{ex.Message}");
+            _logger.LogError("[{Code}] - {Message} - {Exception}", "THROWN_EXCEPTION", $"{ex.Message}", $"{ex}");
             await context.Response.WriteAsync("There was a problem running the application.");
         }
     }
