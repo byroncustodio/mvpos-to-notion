@@ -238,7 +238,7 @@ public class Function : IHttpFunction
     {
         var product = products.Where(product =>
         {
-            if (product.Properties.Sku.Data[0].PlainText.Split(",").Contains(sale.Sku))
+            if (product.Properties.Sku.Data.Any() && product.Properties.Sku.Data[0].PlainText != null && product.Properties.Sku.Data[0].PlainText.Split(",").Contains(sale.Sku))
             {
                 return true;
             }
