@@ -7,7 +7,7 @@
   <ItemGroup>
     <PackageReference Include="Google.Cloud.Functions.Hosting" Version="2.2.1" />
     <PackageReference Include="Google.Cloud.SecretManager.V1" Version="2.4.0" />
-    <PackageReference Include="MVPOS.NET.SDK" Version="2024.927.0-dev.32" />
+    <PackageReference Include="MVPOS.NET.SDK" Version="2025.421.0-dev.33" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Notion.NET.SDK" Version="2024.511.0-dev.51" />
   </ItemGroup>
