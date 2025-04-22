@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using NotionSDK.Models.Property;
 
-namespace MakersManager.Models.Notion;
+namespace mvpos.Models.Notion;
 
 public class InventoryProperties
 {

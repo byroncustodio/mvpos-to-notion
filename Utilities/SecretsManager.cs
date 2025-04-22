@@ -1,6 +1,6 @@
 ﻿using Google.Cloud.SecretManager.V1;
 
-namespace MakersManager.Utilities;
+namespace mvpos.Utilities;
 
 public class SecretsManager(SecretManagerServiceClient secretManagerServiceClient)
 {

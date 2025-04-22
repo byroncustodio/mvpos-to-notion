@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using MakersManager.Models.Notion;
+using mvpos.Models.Notion;
 using MvposSDK.Models;
-using Location = MakersManager.Models.Notion.Location;
+using Location = mvpos.Models.Notion.Location;
 
-namespace MakersManager.Models.Mvpos;
+namespace mvpos.Models.Mvpos;
 
 public class CustomSaleItem(SaleItem saleItem) : SaleItem(saleItem)
 {

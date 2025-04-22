@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 using Google.Cloud.Functions.Framework;
 using Google.Cloud.Functions.Hosting;
 using Google.Cloud.SecretManager.V1;
-using MakersManager.Models.Mvpos;
-using MakersManager.Models.Notion;
-using MakersManager.Utilities;
+using mvpos.Models.Mvpos;
+using mvpos.Models.Notion;
+using mvpos.Utilities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using MvposSDK;
@@ -16,7 +16,7 @@ using NotionSDK.Extensions;
 using NotionSDK.Models.Block;
 using NotionSDK.Models.Property;
 
-namespace MakersManager;
+namespace mvpos;
 
 [FunctionsStartup(typeof(Startup))]
 public class Function(
