@@ -8,6 +8,12 @@
          "args": ["format", "./MakersManager.sln"]
       },
       {
+         "name": "dotnet-build",
+         "group": "pre-commit",
+         "command": "dotnet",
+         "args": ["build"]
+      },
+      {
          "name": "commit-message-linter",
          "command": "dotnet",
          "args": [
