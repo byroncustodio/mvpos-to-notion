@@ -2,20 +2,14 @@
 
 namespace MakersManager.Utilities;
 
-public class SecretsManager
+public class SecretsManager(SecretManagerServiceClient secretManagerServiceClient)
 {
-    private readonly SecretManagerServiceClient _secretManagerServiceClient;
     private const string GcProjectId = "makers-411506";
-
-    public SecretsManager(SecretManagerServiceClient secretManagerServiceClient) 
-    {
-        _secretManagerServiceClient = secretManagerServiceClient;
-    }
 
     private AccessSecretVersionResponse GetSecretVersionResponse(string name, string version = "latest")
     {
         SecretVersionName secretVersionName = new(GcProjectId, name, version);
-        return _secretManagerServiceClient.AccessSecretVersion(secretVersionName);
+        return secretManagerServiceClient.AccessSecretVersion(secretVersionName);
     }
 
     public string GetSecretFromString(string name)

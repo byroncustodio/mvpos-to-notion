@@ -3,13 +3,8 @@ using NotionSDK.Models;
 
 namespace MakersManager.Models.Notion;
 
-public class Summary : Page
+public class Summary(Page page) : Page(page)
 {
-    public Summary(Page page) : base(page)
-    {
-        Properties = page.Properties.ToObject<SummaryProperties>();
-    }
-        
     [JsonProperty("properties")]
-    public new SummaryProperties Properties { get; set; }
+    public new SummaryProperties Properties { get; set; } = page.Properties.ToObject<SummaryProperties>();
 }
