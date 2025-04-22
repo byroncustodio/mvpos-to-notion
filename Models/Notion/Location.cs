@@ -1,15 +1,10 @@
 ﻿using Newtonsoft.Json;
 using NotionSDK.Models;
 
-namespace MakersManager.Models.Notion;
+namespace mvpos.Models.Notion;
 
-public class Location : Page
+public class Location(Page page) : Page(page)
 {
-    public Location(Page page) : base(page)
-    {
-        Properties = page.Properties.ToObject<LocationProperties>();
-    }
-    
     [JsonProperty("properties")]
-    public new LocationProperties Properties { get; set; }
+    public new LocationProperties Properties { get; set; } = page.Properties.ToObject<LocationProperties>();
 }

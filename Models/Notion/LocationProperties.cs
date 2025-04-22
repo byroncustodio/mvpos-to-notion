@@ -1,6 +1,6 @@
 ﻿using NotionSDK.Models.Property;
 
-namespace MakersManager.Models.Notion;
+namespace mvpos.Models;
 
 public class LocationProperties
 {

@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34511.84
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MakersManager", "MakersManager.csproj", "{116D0806-28B6-4BE0-8133-F2C5FD9491A4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "mvpos-to-notion", "mvpos-to-notion.csproj", "{116D0806-28B6-4BE0-8133-F2C5FD9491A4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

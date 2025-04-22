@@ -2,9 +2,9 @@
 /shelf/
 /workspace.xml
 # Rider ignored files
-/projectSettingsUpdater.xml
-/.idea.MakersManager.iml
 /modules.xml
+/projectSettingsUpdater.xml
+/.idea.mvpos-to-notion.iml
 /contentModel.xml
 # Editor-based HTTP Client requests
 /httpRequests/

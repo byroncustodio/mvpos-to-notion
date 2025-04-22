@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MvposSDK;
 using NotionSDK;
 
-namespace MakersManager;
+namespace mvpos;
 
 public class Startup : FunctionsStartup
 {

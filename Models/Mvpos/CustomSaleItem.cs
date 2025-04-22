@@ -1,23 +1,21 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using MakersManager.Models.Notion;
+using mvpos.Models.Notion;
 using MvposSDK.Models;
-using Location = MakersManager.Models.Notion.Location;
+using Location = mvpos.Models.Notion.Location;
 
-namespace MakersManager.Models.Mvpos;
+namespace mvpos.Models.Mvpos;
 
-public class CustomSaleItem : SaleItem
+public class CustomSaleItem(SaleItem saleItem) : SaleItem(saleItem)
 {
-    public CustomSaleItem(SaleItem saleItem) : base(saleItem) { }
-    
     public bool NeedsReview { get; set; }
-    
+
     public Product Product { get; set; }
-    
+
     public Location Location { get; set; }
-    
+
     public Summary Summary { get; set; }
-    
+
     public Inventory Inventory { get; set; }
 
     public decimal GetProfit(List<string> vendors)

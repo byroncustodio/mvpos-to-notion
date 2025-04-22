@@ -1,15 +1,10 @@
 ﻿using Newtonsoft.Json;
 using NotionSDK.Models;
 
-namespace MakersManager.Models.Notion;
+namespace mvpos.Models.Notion;
 
-public class Product : Page
+public class Product(Page page) : Page(page)
 {
-    public Product(Page page) : base(page)
-    {
-        Properties = page.Properties.ToObject<ProductProperties>();
-    }
-        
     [JsonProperty("properties")]
-    public new ProductProperties Properties { get; set; }
+    public new ProductProperties Properties { get; set; } = page.Properties.ToObject<ProductProperties>();
 }
