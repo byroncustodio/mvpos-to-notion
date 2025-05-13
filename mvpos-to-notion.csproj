@@ -14,6 +14,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <RuntimeHostConfigurationOption Value="true" Include="System.Net.SocketsHttpHandler.Http3Support" />
+    <RuntimeHostConfigurationOption Value="false" Include="System.Net.SocketsHttpHandler.Http3Support" />
   </ItemGroup>
 </Project>
