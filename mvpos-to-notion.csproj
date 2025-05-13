@@ -12,4 +12,8 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Notion.NET.SDK" Version="2025.427.0-dev.52" />
   </ItemGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Value="true" Include="System.Net.SocketsHttpHandler.Http3Support" />
+  </ItemGroup>
 </Project>
