@@ -11,7 +11,9 @@ using mvpos.Models.Notion;
 using mvpos.Utilities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using mvpos.Models;
 using MvposSDK;
+using Newtonsoft.Json;
 using NotionSDK;
 using NotionSDK.Extensions;
 using NotionSDK.Models.Block;
@@ -45,13 +47,17 @@ public class Function(
 
     public async Task HandleAsync(HttpContext context)
     {
-        _logger.LogInformation("{Method}", context.Request.Method);
+        if (context.Request.Method != HttpMethods.Post)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            return;
+        }
 
         if (context.Request.Method == HttpMethods.Post)
         {
             using var reader = new StreamReader(context.Request.Body);
-            var b = await reader.ReadToEndAsync();
-            _logger.LogInformation("{Message}", b);
+            var body = JsonConvert.DeserializeObject<RequestBody>(await reader.ReadToEndAsync()) ?? throw new JsonException("Deserialized JSON resulted in null value.");
+            _logger.LogInformation("{Message}", JsonConvert.SerializeObject(body));
         }
 
         return;
