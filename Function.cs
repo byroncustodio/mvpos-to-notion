@@ -34,7 +34,7 @@ public class Function(
     private string Password { get; set; }
     private string UploadType { get; set; }
     private string NotionPageId { get; set; }
-    
+
     private readonly List<CustomSaleItem> _sales = new();
     private DateTime FromDate { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-1);
     private DateTime ToDate { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddSeconds(-1);
@@ -45,17 +45,17 @@ public class Function(
 
     public async Task HandleAsync(HttpContext context)
     {
-        _logger.LogDebug("{Method}", context.Request.Method);
+        _logger.LogInformation("{Method}", context.Request.Method);
 
         if (context.Request.Method == HttpMethods.Post)
         {
             using var reader = new StreamReader(context.Request.Body);
             var b = await reader.ReadToEndAsync();
-            _logger.LogDebug("{Message}", b);
+            _logger.LogInformation("{Message}", b);
         }
 
         return;
-        
+
         #region parse query
 
         var query = context.Request.Query;
@@ -64,22 +64,22 @@ public class Function(
         {
             Email = query["email"].ToString();
         }
-        
+
         if (query.ContainsKey("password"))
         {
-            Password = query["password"].ToString();    
+            Password = query["password"].ToString();
         }
-        
+
         if (query.ContainsKey("upload_type"))
         {
-            UploadType = query["upload_type"].ToString();    
+            UploadType = query["upload_type"].ToString();
         }
-        
+
         if (query.ContainsKey("notion_page_id"))
         {
-            NotionPageId = query["notion_page_id"].ToString();    
+            NotionPageId = query["notion_page_id"].ToString();
         }
-        
+
         if (query.ContainsKey("range"))
         {
             var range = query["range"].ToString();
@@ -156,7 +156,7 @@ public class Function(
                 }
 
                 var salesMetadata = await notion.GetDatabaseMetadata(NotionPageId);
-                
+
                 foreach (var sale in Limit <= 0 ? saleItems : saleItems.Take(Limit))
                 {
                     var rowProperties = new PropertyBuilder();
@@ -175,7 +175,7 @@ public class Function(
                         await notion.AddDatabaseRow(salesMetadata.Id, rowProperties.Build());
                     }
                 }
-                
+
                 await context.Response.WriteAsync($"Successfully generated report. Report URL: {salesMetadata.Url}");
             }
             else
@@ -275,7 +275,7 @@ public class Function(
                         await notion.AddDatabaseRow(salesMetadata.Id, rowProperties.Build());
                     }
                 }
-                
+
                 await context.Response.WriteAsync($"Successfully generated report. Report URL: {salesMetadata.Url}");
             }
         }
