@@ -53,7 +53,7 @@ public class Function(
                 body.Range.To = DateTime.Now.Date.AddSeconds(-1);
                 break;
         }
-        
+
         if (!string.IsNullOrEmpty(body.Locations))
         {
             StoreLocations = Array.ConvertAll(body.Locations.Split(","), int.Parse).Cast<Mvpos.StoreLocation>().ToList();
@@ -179,7 +179,7 @@ public class Function(
                     rowProperties.Add("Sale Date", new Date(sale.SaleDate.ToString("s"), "America/Vancouver"));
                     rowProperties.Add("Location", new Relation(sale.Location));
                     rowProperties.Add("Product", new Relation(sale.Product));
-                    rowProperties.Add("Payment", new Select(sale.Payment.Name));
+                    rowProperties.Add("Payment", new Select(sale.Payment.Name == "" ? "N/A" : sale.Payment.Name));
                     rowProperties.Add("Quantity", new Number(sale.Quantity));
                     rowProperties.Add("Subtotal", new Number(sale.SubTotal));
                     rowProperties.Add("Discount", new Number(sale.Discount / 100));
