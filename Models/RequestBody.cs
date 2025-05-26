@@ -16,13 +16,13 @@ public class RequestBody
 
     [JsonProperty("notionPageId")]
     public string NotionPageId { get; set; }
-    
+
     [JsonProperty("range")]
     public Range Range { get; set; } = new();
 
     [JsonProperty("limit")]
     public int Limit { get; set; }
-    
+
     [JsonProperty("locations")]
     public string Locations { get; set; }
 
@@ -34,7 +34,7 @@ public class Range
 {
     [JsonProperty("type")]
     public string Type { get; set; }
-    
+
     [JsonProperty("from")]
     public DateTime From { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-1);
 
