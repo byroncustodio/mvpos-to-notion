@@ -6,26 +6,38 @@ namespace mvpos.Models;
 public class RequestBody
 {
     [JsonProperty("email")]
-    private string Email { get; set; }
-    
-    [JsonProperty("password")]
-    private string Password { get; set; }
-    
-    [JsonProperty("uploadType")]
-    private string UploadType { get; set; }
-    
-    [JsonProperty("notionPageId")]
-    private string NotionPageId { get; set; }
+    public string Email { get; set; }
 
-    [JsonProperty("fromDate")]
-    private DateTime? FromDate { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-1);
+    [JsonProperty("password")]
+    public string Password { get; set; }
+
+    [JsonProperty("uploadType")]
+    public string UploadType { get; set; }
+
+    [JsonProperty("notionPageId")]
+    public string NotionPageId { get; set; }
     
-    [JsonProperty("toDate")]
-    private DateTime? ToDate { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddSeconds(-1);
-    
+    [JsonProperty("range")]
+    public Range Range { get; set; } = new();
+
     [JsonProperty("limit")]
-    private int? Limit { get; set; }
+    public int Limit { get; set; }
+    
+    [JsonProperty("locations")]
+    public string Locations { get; set; }
 
     [JsonProperty("debug")]
-    private int Debug { get; set; }
+    public int Debug { get; set; }
+}
+
+public class Range
+{
+    [JsonProperty("type")]
+    public string Type { get; set; }
+    
+    [JsonProperty("from")]
+    public DateTime From { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-1);
+
+    [JsonProperty("to")]
+    public DateTime To { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddSeconds(-1);
 }

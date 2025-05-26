@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using mvpos.Models.Notion;
+﻿using mvpos.Models.Notion;
 using MvposSDK.Models;
 using Location = mvpos.Models.Notion.Location;
 
@@ -18,26 +16,8 @@ public class CustomSaleItem(SaleItem saleItem) : SaleItem(saleItem)
 
     public Inventory Inventory { get; set; }
 
-    public decimal GetProfit(List<string> vendors)
+    public decimal GetProfit()
     {
-        var numOfVendors = vendors.Count;
-
-        if (Product == null)
-        {
-            if (Price == 25m) // Assume this is a mystery box sale
-            {
-                return Total / numOfVendors;
-            }
-
-            // Cant determine which vendor, sale is split evenly
-            return Total / numOfVendors;
-        }
-
-        if (Product.Properties.Vendor.Data?.Name == vendors.FirstOrDefault(v => v == "Shared"))
-        {
-            return Total / numOfVendors;
-        }
-
         return Total;
     }
 }

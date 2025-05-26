@@ -32,18 +32,8 @@ public class Function(
     private readonly ILogger _logger = logger;
     private readonly SecretsManager _secretsManager = new(secretManagerServiceClient);
 
-    private string Email { get; set; }
-    private string Password { get; set; }
-    private string UploadType { get; set; }
-    private string NotionPageId { get; set; }
-
     private readonly List<CustomSaleItem> _sales = new();
-    private DateTime FromDate { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-1);
-    private DateTime ToDate { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddSeconds(-1);
-    private int Limit { get; set; }
-    private List<string> Vendors { get; set; } = [];
     private List<Mvpos.StoreLocation> StoreLocations { get; set; } = Enum.GetValues(typeof(Mvpos.StoreLocation)).Cast<Mvpos.StoreLocation>().ToList();
-    private bool Debug { get; set; }
 
     public async Task HandleAsync(HttpContext context)
     {
@@ -53,117 +43,43 @@ public class Function(
             return;
         }
 
-        if (context.Request.Method == HttpMethods.Post)
+        using var reader = new StreamReader(context.Request.Body);
+        var body = JsonConvert.DeserializeObject<RequestBody>(await reader.ReadToEndAsync()) ?? throw new JsonException("Deserialized JSON resulted in null value.");
+
+        switch (body.Range.Type)
         {
-            using var reader = new StreamReader(context.Request.Body);
-            var body = JsonConvert.DeserializeObject<RequestBody>(await reader.ReadToEndAsync()) ?? throw new JsonException("Deserialized JSON resulted in null value.");
-            _logger.LogInformation("{Message}", JsonConvert.SerializeObject(body));
+            case "PastWeek":
+                body.Range.From = DateTime.Now.AddDays(-7).Date;
+                body.Range.To = DateTime.Now.Date.AddSeconds(-1);
+                break;
         }
-
-        return;
-
-        #region parse query
-
-        var query = context.Request.Query;
-
-        if (query.ContainsKey("email"))
+        
+        if (!string.IsNullOrEmpty(body.Locations))
         {
-            Email = query["email"].ToString();
+            StoreLocations = Array.ConvertAll(body.Locations.Split(","), int.Parse).Cast<Mvpos.StoreLocation>().ToList();
         }
-
-        if (query.ContainsKey("password"))
-        {
-            Password = query["password"].ToString();
-        }
-
-        if (query.ContainsKey("upload_type"))
-        {
-            UploadType = query["upload_type"].ToString();
-        }
-
-        if (query.ContainsKey("notion_page_id"))
-        {
-            NotionPageId = query["notion_page_id"].ToString();
-        }
-
-        if (query.ContainsKey("range"))
-        {
-            var range = query["range"].ToString();
-
-            switch (range)
-            {
-                case "ByYearMonth":
-                    if (query.ContainsKey("month") && query.ContainsKey("year"))
-                    {
-                        FromDate = new DateTime(int.Parse(query["year"]), int.Parse(query["month"]), 1);
-                        ToDate = FromDate.AddMonths(1).AddSeconds(-1);
-                    }
-                    break;
-                case "ByYear":
-                    if (query.ContainsKey("year"))
-                    {
-                        FromDate = new DateTime(int.Parse(query["year"]), 1, 1);
-                        ToDate = new DateTime(int.Parse(query["year"]), 12, 31);
-                    }
-                    break;
-                case "PastWeek":
-                    FromDate = DateTime.Now.AddDays(-7).Date;
-                    ToDate = DateTime.Now.Date.AddSeconds(-1);
-                    break;
-                case "Custom":
-                    if (query.ContainsKey("from") && query.ContainsKey("to"))
-                    {
-                        FromDate = DateTime.Parse(query["from"]);
-                        ToDate = DateTime.Parse(query["to"]);
-                    }
-                    break;
-            }
-        }
-
-        if (query.ContainsKey("limit"))
-        {
-            Limit = int.Parse(query["limit"]);
-        }
-
-        if (query.ContainsKey("vendors"))
-        {
-            Vendors = query["vendors"].ToString().Split(",").ToList();
-            Vendors.Add("Shared");
-        }
-
-        if (query.ContainsKey("locations"))
-        {
-            StoreLocations = Array.ConvertAll(query["locations"].ToString().Split(","), int.Parse).Cast<Mvpos.StoreLocation>().ToList();
-        }
-
-        if (query.ContainsKey("debug"))
-        {
-            Debug = bool.Parse(query["debug"].ToString());
-        }
-
-        #endregion
 
         try
         {
-            await mvpos.Users.Login(Email ?? _secretsManager.GetSecretFromString("mvpos-user"),
-                Password ?? _secretsManager.GetSecretFromString("mvpos-password"));
+            await mvpos.Users.Login(body.Email ?? _secretsManager.GetSecretFromString("mvpos-user"),
+                body.Password ?? _secretsManager.GetSecretFromString("mvpos-password"));
             notion.Configure(_secretsManager.GetSecretFromString("notion-base-url"),
                 _secretsManager.GetSecretFromString("notion-token"));
 
-            if (UploadType == "Basic")
+            if (body.UploadType == "Basic")
             {
                 await mvpos.Users.SetStoreLocation(Mvpos.StoreLocation.Victoria);
 
-                var saleItems = (await mvpos.SaleItems.List(FromDate, ToDate)).Items;
+                var saleItems = (await mvpos.SaleItems.List(body.Range.From, body.Range.To)).Items;
 
                 if (saleItems is not { Count: > 0 })
                 {
                     await context.Response.WriteAsync($"No sales found.");
                 }
 
-                var salesMetadata = await notion.GetDatabaseMetadata(NotionPageId);
+                var salesMetadata = await notion.GetDatabaseMetadata(body.NotionPageId);
 
-                foreach (var sale in Limit <= 0 ? saleItems : saleItems.Take(Limit))
+                foreach (var sale in body.Limit <= 0 ? saleItems : saleItems.Take(body.Limit))
                 {
                     var rowProperties = new PropertyBuilder();
                     rowProperties.Add("Sale Id", new Title(sale.SaleId.ToString()));
@@ -176,7 +92,7 @@ public class Function(
                     rowProperties.Add("SKU", new RichText(sale.Sku));
                     rowProperties.Add("Name", new RichText(sale.Name));
 
-                    if (!Debug)
+                    if (body.Debug != 1)
                     {
                         await notion.AddDatabaseRow(salesMetadata.Id, rowProperties.Build());
                     }
@@ -203,7 +119,7 @@ public class Function(
                 {
                     await mvpos.Users.SetStoreLocation(storeLocation);
 
-                    var saleItems = (await mvpos.SaleItems.List(FromDate, ToDate)).Items;
+                    var saleItems = (await mvpos.SaleItems.List(body.Range.From, body.Range.To)).Items.Where(item => item.LocationId == (int)storeLocation).ToList();
 
                     if (saleItems is not { Count: > 0 }) { continue; }
 
@@ -215,7 +131,7 @@ public class Function(
 
                     if (location != null)
                     {
-                        foreach (var date in GetMonthsBetweenDates(FromDate, ToDate).Where(date =>
+                        foreach (var date in GetMonthsBetweenDates(body.Range.From, body.Range.To).Where(date =>
                                      _sales.Any(sale =>
                                          sale.LocationId == (int)storeLocation &&
                                          sale.SaleDate.ToString("Y") == date.ToString("Y")) &&
@@ -227,7 +143,7 @@ public class Function(
                             rowProperties.Add("Date", new Date(new DateData { Start = date.ToString("yyyy-MM-dd") }));
                             rowProperties.Add("Location", new Relation([new PageReference { Id = location.Id }]));
 
-                            if (!Debug)
+                            if (body.Debug != 1)
                             {
                                 summaryPages.Add(new Summary(await notion.AddDatabaseRow(summaryDatabase.Id ?? throw new InvalidOperationException(), rowProperties.Build())));
                             }
@@ -246,7 +162,6 @@ public class Function(
 
                 var products = (await notion.QueryDatabase(_secretsManager.GetSecretFromString("notion-products-id")))
                     .Select(result => new Product(result))
-                    .Where(product => Vendors.Count == 0 || Vendors.Contains(product.Properties.Vendor.Data?.Name))
                     .ToList();
 
                 var inventories = (await notion.QueryDatabase(_secretsManager.GetSecretFromString("notion-inventory-id")))
@@ -255,7 +170,7 @@ public class Function(
 
                 var salesMetadata = await notion.GetDatabaseMetadata(_secretsManager.GetSecretFromString("notion-sales-id"));
 
-                foreach (var sale in Limit <= 0 ? _sales.Where(sale => ValidateSale(sale, products)) : _sales.Where(sale => ValidateSale(sale, products)).Take(Limit))
+                foreach (var sale in body.Limit <= 0 ? _sales.Where(sale => ValidateSale(sale, products)) : _sales.Where(sale => ValidateSale(sale, products)).Take(body.Limit))
                 {
                     PopulateRelations(sale, locationPages, inventories, summaryPages);
 
@@ -269,14 +184,14 @@ public class Function(
                     rowProperties.Add("Subtotal", new Number(sale.SubTotal));
                     rowProperties.Add("Discount", new Number(sale.Discount / 100));
                     rowProperties.Add("Total", new Number(sale.Total));
-                    rowProperties.Add("Profit", new Number(sale.NeedsReview ? 0 : sale.GetProfit(Vendors)));
+                    rowProperties.Add("Profit", new Number(sale.NeedsReview ? 0 : sale.GetProfit()));
                     rowProperties.Add("Summary", new Relation(sale.Summary));
                     rowProperties.Add("Status", new Status(sale.NeedsReview ? "Review" : "Done"));
                     rowProperties.Add("SKU", new RichText(sale.Sku));
                     rowProperties.Add("Name", new RichText(sale.Name));
                     rowProperties.Add("Inventory", new Relation(sale.Inventory));
 
-                    if (!Debug)
+                    if (body.Debug != 1)
                     {
                         await notion.AddDatabaseRow(salesMetadata.Id, rowProperties.Build());
                     }
